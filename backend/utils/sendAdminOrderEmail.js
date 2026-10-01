@@ -56,6 +56,7 @@ const sendAdminOrderEmail = async (order) => {
       <h2>Grand Total: ₹${order.finalAmount}</h2>
 
       <p>Login to admin panel to process this order.</p>
+      <p><a href="${(process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim()}/admin/orders">View Order in Admin Panel</a></p>
     </div>
   `;
 
