@@ -1,0 +1,25 @@
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #fff8fb;
+  color: #2d1b24;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
