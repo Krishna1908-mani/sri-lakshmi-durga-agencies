@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 
@@ -23,7 +23,7 @@ function EditProduct() {
 
   const [uploading, setUploading] = useState(false);
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const res = await API.get(`/products/${id}`);
       const product = res.data.product;
@@ -45,11 +45,11 @@ function EditProduct() {
       console.log(error);
       alert("Failed to fetch product");
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchProduct();
-  }, [id]);
+  }, [fetchProduct]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });

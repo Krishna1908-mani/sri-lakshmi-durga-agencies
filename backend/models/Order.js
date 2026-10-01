@@ -63,14 +63,14 @@ const orderSchema = new mongoose.Schema(
       default: 0,
     },
     discountAmount: {
-  type: Number,
-  default: 0,
-},
+      type: Number,
+      default: 0,
+    },
 
-couponCode: {
-  type: String,
-  default: "",
-},
+    couponCode: {
+      type: String,
+      default: "",
+    },
     stockRestored: {
       type: Boolean,
       default: false,
@@ -89,7 +89,7 @@ couponCode: {
 
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Paid", "Failed"],
+      enum: ["Pending", "Paid", "Failed", "Cancelled", "Refund Pending", "Refunded"],
       default: "Pending",
     },
 
@@ -127,10 +127,7 @@ couponCode: {
       type: String,
       default: "",
     },
-    stockRestored: {
-      type: Boolean,
-      default: false,
-    },
+
   },
   { timestamps: true }
 );

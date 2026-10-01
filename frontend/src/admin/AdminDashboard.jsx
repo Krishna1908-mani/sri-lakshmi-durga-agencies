@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import API from "../api/axios";
 
 function AdminDashboard() {
@@ -21,7 +21,7 @@ function AdminDashboard() {
     navigate("/admin/login");
   };
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const productsRes = await API.get("/products");
 
@@ -68,7 +68,7 @@ function AdminDashboard() {
       localStorage.removeItem("adminName");
       navigate("/admin/login");
     }
-  };
+  }, [token, navigate]);
 
   useEffect(() => {
     if (!token) {
@@ -77,7 +77,7 @@ function AdminDashboard() {
     }
 
     fetchStats();
-  }, []);
+  }, [token, navigate, fetchStats]);
 
   return (
     <div className="admin-page">

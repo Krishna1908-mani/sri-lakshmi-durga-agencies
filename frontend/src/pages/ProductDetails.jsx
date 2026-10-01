@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useCart } from "../context/CartContext";
 import API from "../api/axios";
 
@@ -46,7 +46,7 @@ function ProductDetails() {
     localStorage.setItem("recentlyViewed", JSON.stringify(updatedItems));
   };
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const res = await API.get(`/products/${id}`);
       const productData = res.data.product;
@@ -68,11 +68,11 @@ function ProductDetails() {
     } catch (error) {
       console.log("Product fetch error:", error);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchProduct();
-  }, [id]);
+  }, [fetchProduct]);
 
   const handleReviewChange = (e) => {
     setReviewForm({ ...reviewForm, [e.target.name]: e.target.value });

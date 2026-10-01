@@ -9,8 +9,11 @@ const createAdmin = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
 
+    const adminEmail = "admin@srilakshmidurga.com";
+    const adminPassword = "Admin@12345";
+
     const adminExists = await User.findOne({
-      email: "admin@lavanya.com",
+      email: adminEmail,
     });
 
     if (adminExists) {
@@ -18,18 +21,18 @@ const createAdmin = async () => {
       process.exit();
     }
 
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     await User.create({
-      name: "Store Admin",
-      email: "admin@lavanya.com",
+      name: "Sri Lakshmi Durga Admin",
+      email: adminEmail,
       password: hashedPassword,
       role: "admin",
     });
 
     console.log("Admin created successfully");
-    console.log("Email: admin@lavanya.com");
-    console.log("Password: admin123");
+    console.log("Email:", adminEmail);
+    console.log("Password:", adminPassword);
 
     process.exit();
   } catch (error) {

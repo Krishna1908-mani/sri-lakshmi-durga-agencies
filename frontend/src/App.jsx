@@ -90,13 +90,13 @@ function AppLayout() {
           }
         />
         <Route
-  path="/admin/settings"
-  element={
-    <AdminProtected>
-      <AdminSettings />
-    </AdminProtected>
-  }
-/>
+          path="/admin/settings"
+          element={
+            <AdminProtected>
+              <AdminSettings />
+            </AdminProtected>
+          }
+        />
 
         <Route
           path="/admin/edit-product/:id"

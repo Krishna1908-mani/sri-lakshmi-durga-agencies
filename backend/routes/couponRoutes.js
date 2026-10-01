@@ -9,6 +9,13 @@ router.post("/validate", async (req, res) => {
   try {
     const { code, totalAmount } = req.body;
 
+    if (!code || totalAmount === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Coupon code and total amount are required",
+      });
+    }
+
     const coupon = await Coupon.findOne({
       code: code.toUpperCase(),
       isActive: true,

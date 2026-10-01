@@ -8,7 +8,8 @@ const sendEmail = require("../utils/sendEmail");
 const router = express.Router();
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  const secret = process.env.JWT_SECRET || "fallback_default_jwt_secret_dev_only";
+  return jwt.sign({ id }, secret, {
     expiresIn: "30d",
   });
 };
@@ -18,7 +19,15 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and password are required",
+      });
+    }
+
+    const trimmedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ email: trimmedEmail });
 
     if (existingUser) {
       return res.status(400).json({
@@ -30,8 +39,8 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: trimmedEmail,
       password: hashedPassword,
       role: "customer",
     });
@@ -60,7 +69,15 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    const user = await User.findOne({ email: trimmedEmail });
 
     if (!user || user.role !== "customer") {
       return res.status(401).json({
@@ -101,8 +118,16 @@ router.post("/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
     const admin = await User.findOne({
-      email: email.toLowerCase().trim(),
+      email: trimmedEmail,
       role: "admin",
     });
 
@@ -140,10 +165,18 @@ router.post("/admin/login", async (req, res) => {
     });
   }
 });
+
 // Admin update email/password
 router.put("/admin/update-profile", protectAdmin, async (req, res) => {
   try {
     const { name, email, currentPassword, newPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is required to update profile",
+      });
+    }
 
     const admin = await User.findById(req.user._id || req.user.id);
 
@@ -163,20 +196,25 @@ router.put("/admin/update-profile", protectAdmin, async (req, res) => {
       });
     }
 
-    const emailExists = await User.findOne({
-      email,
-      _id: { $ne: admin._id },
-    });
-
-    if (emailExists) {
-      return res.status(400).json({
-        success: false,
-        message: "Email already used by another account",
+    if (email && email.toLowerCase().trim() !== admin.email) {
+      const emailExists = await User.findOne({
+        email: email.toLowerCase().trim(),
+        _id: { $ne: admin._id },
       });
+
+      if (emailExists) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already used by another account",
+        });
+      }
+
+      admin.email = email.toLowerCase().trim();
     }
 
-    admin.name = name || admin.name;
-    admin.email = email || admin.email;
+    if (name) {
+      admin.name = name.trim();
+    }
 
     if (newPassword && newPassword.trim().length > 0) {
       admin.password = await bcrypt.hash(newPassword, 10);
@@ -207,7 +245,15 @@ router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    const user = await User.findOne({ email: trimmedEmail });
 
     if (!user || user.role !== "customer") {
       return res.status(404).json({
@@ -258,7 +304,15 @@ router.post("/reset-password", async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, OTP, and new password are required",
+      });
+    }
+
+    const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    const user = await User.findOne({ email: trimmedEmail });
 
     if (!user || user.role !== "customer") {
       return res.status(404).json({
@@ -281,7 +335,7 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    const isOtpMatch = await bcrypt.compare(otp, user.resetOtp);
+    const isOtpMatch = await bcrypt.compare(otp.toString(), user.resetOtp);
 
     if (!isOtpMatch) {
       return res.status(400).json({

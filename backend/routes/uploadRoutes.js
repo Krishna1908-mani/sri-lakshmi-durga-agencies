@@ -8,7 +8,17 @@ const router = express.Router();
 router.post(
   "/product-image",
   protectAdmin,
-  upload.single("image"),
+  (req, res, next) => {
+    upload.single("image")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || "Image upload failed",
+        });
+      }
+      next();
+    });
+  },
   (req, res) => {
     try {
       if (!req.file) {
@@ -40,7 +50,17 @@ router.post(
 router.post(
   "/product-images",
   protectAdmin,
-  upload.array("images", 8),
+  (req, res, next) => {
+    upload.array("images", 8)(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || "Gallery image upload failed",
+        });
+      }
+      next();
+    });
+  },
   (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {

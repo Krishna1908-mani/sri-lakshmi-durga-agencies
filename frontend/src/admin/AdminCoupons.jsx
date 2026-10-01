@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
 
@@ -14,7 +14,7 @@ function AdminCoupons() {
     minOrderAmount: "",
   });
 
-  const fetchCoupons = async () => {
+  const fetchCoupons = useCallback(async () => {
     try {
       const res = await API.get("/coupons", {
         headers: {
@@ -26,25 +26,11 @@ function AdminCoupons() {
     } catch (error) {
       console.log(error);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    const loadCoupons = async () => {
-      try {
-        const res = await API.get("/coupons", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        setCoupons(res.data.coupons);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    loadCoupons();
-  }, [token]);
+    fetchCoupons();
+  }, [fetchCoupons]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });

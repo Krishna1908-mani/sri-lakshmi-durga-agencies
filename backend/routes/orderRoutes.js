@@ -27,10 +27,11 @@ const checkAndReduceStock = async (items) => {
 };
 
 const restoreStock = async (items) => {
+  if (!Array.isArray(items)) return;
   for (const item of items) {
-    if (item.productId) {
+    if (item && item.productId) {
       await Product.findByIdAndUpdate(item.productId, {
-        $inc: { stock: item.quantity },
+        $inc: { stock: Number(item.quantity) || 0 },
       });
     }
   }
@@ -57,6 +58,14 @@ router.post("/", async (req, res) => {
       });
     }
 
+    if (!customer.name || !customer.mobile || !customer.address ||
+        !customer.city || !customer.state || !customer.pincode) {
+      return res.status(400).json({
+        success: false,
+        message: "All customer fields (name, mobile, address, city, state, pincode) are required",
+      });
+    }
+
     await checkAndReduceStock(items);
 
     const orderId = "ORD" + Date.now();
@@ -71,7 +80,7 @@ router.post("/", async (req, res) => {
       couponCode: couponCode || "",
       finalAmount,
       paymentMethod: paymentMethod || "COD",
-      paymentStatus: paymentMethod === "ONLINE" ? "Pending" : "Pending",
+      paymentStatus: "Pending",
       orderStatus: "Order Placed",
       stockRestored: false,
     });
@@ -237,9 +246,15 @@ router.put("/:id/status", protectAdmin, async (req, res) => {
       order.stockRestored = true;
     }
 
-    order.orderStatus = orderStatus;
-    order.trackingId = trackingId;
-    order.paymentStatus = paymentStatus;
+    if (orderStatus !== undefined) {
+      order.orderStatus = orderStatus;
+    }
+    if (trackingId !== undefined) {
+      order.trackingId = trackingId;
+    }
+    if (paymentStatus !== undefined) {
+      order.paymentStatus = paymentStatus;
+    }
 
     await order.save();
 

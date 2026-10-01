@@ -7,17 +7,17 @@ const sendAdminOrderEmail = require("../utils/sendAdminOrderEmail");
 
 const router = express.Router();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
 
 const checkAndReduceStock = async (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Order items are required");
+  }
+
   for (const item of items) {
     const product = await Product.findById(item.productId);
 
     if (!product) {
-      throw new Error(`${item.name} not found`);
+      throw new Error(`${item.name || "Item"} not found`);
     }
 
     if (product.stock < item.quantity) {
@@ -27,7 +27,7 @@ const checkAndReduceStock = async (items) => {
 
   for (const item of items) {
     await Product.findByIdAndUpdate(item.productId, {
-      $inc: { stock: -item.quantity },
+      $inc: { stock: -Number(item.quantity) },
     });
   }
 };
@@ -44,11 +44,23 @@ router.post("/create-order", async (req, res) => {
       });
     }
 
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: "Razorpay payment keys are not configured on server",
+      });
+    }
+
     const options = {
       amount: Math.round(amount * 100),
       currency: "INR",
       receipt: "receipt_" + Date.now(),
     };
+
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
 
     const razorpayOrder = await razorpay.orders.create(options);
 
@@ -76,6 +88,27 @@ router.post("/verify-and-create-order", async (req, res) => {
       razorpay_signature,
       orderData,
     } = req.body;
+
+    if (
+      !razorpay_order_id ||
+      !razorpay_payment_id ||
+      !razorpay_signature ||
+      !orderData ||
+      !orderData.customer ||
+      !orderData.items
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Incomplete payment or order verification data",
+      });
+    }
+
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: "Razorpay secret key not configured on server",
+      });
+    }
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 

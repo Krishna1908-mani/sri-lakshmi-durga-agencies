@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import API from "../api/axios";
 
@@ -8,7 +8,7 @@ function AdminInvoice() {
 
   const [order, setOrder] = useState(null);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const res = await API.get("/orders", {
         headers: {
@@ -22,11 +22,11 @@ function AdminInvoice() {
       console.log(error);
       alert("Failed to load invoice");
     }
-  };
+  }, [id, token]);
 
   useEffect(() => {
     fetchOrder();
-  }, [id]);
+  }, [fetchOrder]);
 
   const printInvoice = () => {
     window.print();
