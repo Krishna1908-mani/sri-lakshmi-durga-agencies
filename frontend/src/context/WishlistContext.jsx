@@ -17,7 +17,10 @@ export function WishlistProvider({ children }) {
   }, [wishlistItems]);
 
   const addToWishlist = (product) => {
-    const exists = wishlistItems.find((item) => item._id === product._id);
+    const prodId = String(product.id || product._id);
+    const exists = wishlistItems.find(
+      (item) => String(item.id || item._id) === prodId
+    );
 
     if (exists) {
       alert("Product already in wishlist");
@@ -29,11 +32,16 @@ export function WishlistProvider({ children }) {
   };
 
   const removeFromWishlist = (id) => {
-    setWishlistItems(wishlistItems.filter((item) => item._id !== id));
+    setWishlistItems(
+      wishlistItems.filter((item) => String(item.id || item._id) !== String(id))
+    );
   };
 
   const isInWishlist = (id) => {
-    return wishlistItems.some((item) => item._id === id);
+    if (!id) return false;
+    return wishlistItems.some(
+      (item) => String(item.id || item._id) === String(id)
+    );
   };
 
   return (

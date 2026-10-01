@@ -1,5 +1,21 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { 
+  ShieldCheck, 
+  Lock, 
+  Truck, 
+  Tag, 
+  CheckCircle2, 
+  CreditCard, 
+  Banknote, 
+  MapPin, 
+  User, 
+  Phone, 
+  Mail, 
+  ShoppingBag,
+  ArrowLeft,
+  X
+} from "lucide-react";
 import { useCart } from "../context/CartContext";
 import API from "../api/axios";
 
@@ -30,6 +46,7 @@ function Checkout() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   const deliveryCharge = totalAmount >= 999 ? 0 : 50;
   const finalAmount = totalAmount + deliveryCharge - discountAmount;
@@ -40,7 +57,7 @@ function Checkout() {
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) {
-      alert("Enter coupon code");
+      alert("Please enter a valid coupon code");
       return;
     }
 
@@ -53,12 +70,12 @@ function Checkout() {
       setAppliedCoupon(res.data.coupon);
       setDiscountAmount(res.data.coupon.discountAmount);
 
-      alert("Coupon applied successfully");
+      alert("Coupon applied successfully!");
     } catch (error) {
       console.log(error);
       setAppliedCoupon(null);
       setDiscountAmount(0);
-      alert(error.response?.data?.message || "Invalid coupon");
+      alert(error.response?.data?.message || "Invalid coupon code");
     }
   };
 
@@ -122,9 +139,7 @@ function Checkout() {
 
   const placeCODOrder = async () => {
     const orderData = getOrderData();
-
     const res = await API.post("/orders", orderData);
-
     goToSuccessPage(res.data.order);
   };
 
@@ -164,7 +179,7 @@ function Checkout() {
           goToSuccessPage(verifyRes.data.order);
         } catch (error) {
           console.log("Payment verify error:", error);
-          alert("Payment completed but verification failed. Contact admin.");
+          alert("Payment completed but verification failed. Please contact support.");
         }
       },
 
@@ -179,7 +194,7 @@ function Checkout() {
       },
 
       theme: {
-        color: "#c2185b",
+        color: "#059669",
       },
     };
 
@@ -197,7 +212,8 @@ function Checkout() {
     e.preventDefault();
 
     if (cartItems.length === 0) {
-      alert("Cart is empty");
+      alert("Your cart is empty");
+      navigate("/shop");
       return;
     }
 
@@ -207,6 +223,7 @@ function Checkout() {
     }
 
     try {
+      setSubmitting(true);
       if (form.paymentMethod === "COD") {
         await placeCODOrder();
       } else {
@@ -215,129 +232,338 @@ function Checkout() {
     } catch (error) {
       console.log("Order error:", error);
       alert(error.response?.data?.message || "Failed to place order");
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  if (cartItems.length === 0) {
+    return (
+      <div className="page checkout-page">
+        <div className="cart-empty-state">
+          <ShoppingBag size={52} className="empty-cart-icon" />
+          <h2>Your Cart is Empty</h2>
+          <p>Please add items to your cart before proceeding to checkout.</p>
+          <Link to="/shop" className="primary-btn">
+            Shop Products
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1>Checkout</h1>
-        <p>Enter your delivery details</p>
+    <div className="page checkout-page">
+      {/* Header */}
+      <div className="checkout-page-header">
+        <div>
+          <h1>Checkout & Payment</h1>
+          <p>Complete your delivery and payment details securely</p>
+        </div>
+        <Link to="/cart" className="back-to-cart-link">
+          <ArrowLeft size={16} />
+          <span>Back to Cart</span>
+        </Link>
       </div>
 
-      <form className="checkout-form" onSubmit={placeOrder}>
-        <div className="form-grid">
-          <input
-            name="name"
-            placeholder="Full Name"
-            value={form.name}
-            onChange={handleChange}
-            required
-          />
+      <form className="checkout-layout-form" onSubmit={placeOrder}>
+        {/* Left Column: Delivery and Payment Details */}
+        <div className="checkout-main-column">
+          {/* Section 1: Customer Details */}
+          <div className="checkout-card">
+            <div className="checkout-card-header">
+              <div className="card-header-icon-box">
+                <MapPin size={20} />
+              </div>
+              <div>
+                <h2>Shipping Address</h2>
+                <p>Where should we deliver your order?</p>
+              </div>
+            </div>
 
-          <input
-            name="mobile"
-            placeholder="Mobile Number"
-            value={form.mobile}
-            onChange={handleChange}
-            required
-          />
+            <div className="checkout-form-grid">
+              <div className="form-group">
+                <label htmlFor="checkout-name">Full Name *</label>
+                <div className="input-with-icon">
+                  <User size={16} className="input-prefix-icon" />
+                  <input
+                    id="checkout-name"
+                    name="name"
+                    placeholder="Enter your full name"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-          <input
-            name="email"
-            placeholder="Email Address"
-            value={form.email}
-            onChange={handleChange}
-            required
-          />
+              <div className="form-group">
+                <label htmlFor="checkout-mobile">Mobile Number *</label>
+                <div className="input-with-icon">
+                  <Phone size={16} className="input-prefix-icon" />
+                  <input
+                    id="checkout-mobile"
+                    name="mobile"
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={form.mobile}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-          <input
-            name="pincode"
-            placeholder="Pincode"
-            value={form.pincode}
-            onChange={handleChange}
-            required
-          />
+              <div className="form-group span-2">
+                <label htmlFor="checkout-email">Email Address *</label>
+                <div className="input-with-icon">
+                  <Mail size={16} className="input-prefix-icon" />
+                  <input
+                    id="checkout-email"
+                    name="email"
+                    type="email"
+                    placeholder="Order updates will be sent here"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-          <input
-            name="city"
-            placeholder="City"
-            value={form.city}
-            onChange={handleChange}
-            required
-          />
+              <div className="form-group span-2">
+                <label htmlFor="checkout-address">Delivery Address *</label>
+                <textarea
+                  id="checkout-address"
+                  name="address"
+                  placeholder="House / Flat no., Building name, Street, Landmark"
+                  value={form.address}
+                  onChange={handleChange}
+                  className="checkout-textarea"
+                  rows={3}
+                  required
+                />
+              </div>
 
-          <input
-            name="state"
-            placeholder="State"
-            value={form.state}
-            onChange={handleChange}
-            required
-          />
-        </div>
+              <div className="form-group">
+                <label htmlFor="checkout-pincode">Pincode *</label>
+                <input
+                  id="checkout-pincode"
+                  name="pincode"
+                  placeholder="6-digit pincode"
+                  value={form.pincode}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                />
+              </div>
 
-        <textarea
-          name="address"
-          placeholder="Full Address"
-          value={form.address}
-          onChange={handleChange}
-          required
-        />
+              <div className="form-group">
+                <label htmlFor="checkout-city">City *</label>
+                <input
+                  id="checkout-city"
+                  name="city"
+                  placeholder="City / Town"
+                  value={form.city}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                />
+              </div>
 
-        <select
-          name="paymentMethod"
-          value={form.paymentMethod}
-          onChange={handleChange}
-        >
-          <option value="COD">Cash on Delivery</option>
-          <option value="ONLINE">Online Payment - Razorpay</option>
-        </select>
-
-        <div className="coupon-box">
-          <h3>Apply Coupon</h3>
-
-          <div className="coupon-row">
-            <input
-              placeholder="Enter coupon code"
-              value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-              disabled={!!appliedCoupon}
-            />
-
-            {appliedCoupon ? (
-              <button type="button" onClick={removeCoupon}>
-                Remove
-              </button>
-            ) : (
-              <button type="button" onClick={applyCoupon}>
-                Apply
-              </button>
-            )}
+              <div className="form-group span-2">
+                <label htmlFor="checkout-state">State *</label>
+                <input
+                  id="checkout-state"
+                  name="state"
+                  placeholder="State"
+                  value={form.state}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                />
+              </div>
+            </div>
           </div>
 
-          {appliedCoupon && (
-            <p className="discount-text">
-              Coupon {appliedCoupon.code} applied. You saved ₹{discountAmount}
-            </p>
-          )}
+          {/* Section 2: Payment Method */}
+          <div className="checkout-card">
+            <div className="checkout-card-header">
+              <div className="card-header-icon-box">
+                <CreditCard size={20} />
+              </div>
+              <div>
+                <h2>Payment Method</h2>
+                <p>Choose your preferred payment option</p>
+              </div>
+            </div>
+
+            <div className="payment-options-grid">
+              <label 
+                className={`payment-option-card ${form.paymentMethod === "COD" ? "selected" : ""}`}
+                onClick={() => setForm({ ...form, paymentMethod: "COD" })}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="COD"
+                  checked={form.paymentMethod === "COD"}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <div className="option-radio-indicator">
+                  <div className="radio-inner-dot"></div>
+                </div>
+                <div className="option-content">
+                  <div className="option-title-row">
+                    <Banknote size={20} className="option-icon" />
+                    <strong>Cash on Delivery (COD)</strong>
+                  </div>
+                  <p>Pay with cash or UPI when the package arrives at your doorstep</p>
+                </div>
+              </label>
+
+              <label 
+                className={`payment-option-card ${form.paymentMethod === "ONLINE" ? "selected" : ""}`}
+                onClick={() => setForm({ ...form, paymentMethod: "ONLINE" })}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="ONLINE"
+                  checked={form.paymentMethod === "ONLINE"}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <div className="option-radio-indicator">
+                  <div className="radio-inner-dot"></div>
+                </div>
+                <div className="option-content">
+                  <div className="option-title-row">
+                    <CreditCard size={20} className="option-icon" />
+                    <strong>Online Payment — Razorpay</strong>
+                    <span className="secure-badge">Instant</span>
+                  </div>
+                  <p>Pay securely via UPI (Google Pay, PhonePe, Paytm), Credit/Debit Card or NetBanking</p>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
 
-        <div className="checkout-total">
-          <p>Products: ₹{totalAmount}</p>
-          <p>Delivery: ₹{deliveryCharge}</p>
+        {/* Right Column: Order Summary & Coupon */}
+        <aside className="checkout-sidebar">
+          <div className="checkout-summary-card">
+            <h2>Order Summary ({cartItems.length} {cartItems.length === 1 ? "item" : "items"})</h2>
 
-          {discountAmount > 0 && (
-            <p className="discount-text">Discount: -₹{discountAmount}</p>
-          )}
+            {/* Items preview list */}
+            <div className="checkout-items-preview">
+              {cartItems.map((item) => (
+                <div className="checkout-item-row" key={`${item.productId}-${item.selectedSize}`}>
+                  <img src={item.image} alt={item.name} className="checkout-item-thumb" />
+                  <div className="checkout-item-details">
+                    <h4>{item.name}</h4>
+                    <span className="checkout-item-sub">
+                      Qty: {item.quantity} {item.selectedSize ? `• Size: ${item.selectedSize}` : ""}
+                    </span>
+                  </div>
+                  <span className="checkout-item-price">
+                    ₹{(item.price * item.quantity)?.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              ))}
+            </div>
 
-          <h2>Total Amount: ₹{finalAmount}</h2>
-        </div>
+            {/* Coupon Box */}
+            <div className="checkout-coupon-card">
+              <div className="coupon-card-header">
+                <Tag size={16} />
+                <span>Have a Coupon Code?</span>
+              </div>
 
-        <button className="primary-btn" type="submit">
-          {form.paymentMethod === "COD"
-            ? "Place COD Order"
-            : "Pay Online & Place Order"}
-        </button>
+              <div className="coupon-input-group">
+                <input
+                  type="text"
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  disabled={!!appliedCoupon}
+                  className="coupon-input"
+                />
+
+                {appliedCoupon ? (
+                  <button type="button" onClick={removeCoupon} className="coupon-remove-btn">
+                    <X size={15} />
+                    <span>Remove</span>
+                  </button>
+                ) : (
+                  <button type="button" onClick={applyCoupon} className="coupon-apply-btn">
+                    Apply
+                  </button>
+                )}
+              </div>
+
+              {appliedCoupon && (
+                <div className="coupon-success-pill">
+                  <CheckCircle2 size={15} />
+                  <span>Coupon <strong>{appliedCoupon.code}</strong> applied! You saved <strong>₹{discountAmount}</strong></span>
+                </div>
+              )}
+            </div>
+
+            {/* Price Calculations */}
+            <div className="checkout-cost-breakdown">
+              <div className="breakdown-row">
+                <span>Items Subtotal</span>
+                <span>₹{totalAmount?.toLocaleString("en-IN")}</span>
+              </div>
+
+              <div className="breakdown-row">
+                <span>Delivery Charge</span>
+                <span>
+                  {deliveryCharge === 0 ? (
+                    <span className="text-free-delivery">FREE</span>
+                  ) : (
+                    `₹${deliveryCharge}`
+                  )}
+                </span>
+              </div>
+
+              {discountAmount > 0 && (
+                <div className="breakdown-row discount-row">
+                  <span>Coupon Discount</span>
+                  <span>-₹{discountAmount?.toLocaleString("en-IN")}</span>
+                </div>
+              )}
+
+              <div className="breakdown-divider"></div>
+
+              <div className="breakdown-total-row">
+                <span>Total Amount</span>
+                <span className="total-highlight">₹{finalAmount?.toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+
+            {/* Submit Action CTA */}
+            <button 
+              type="submit" 
+              className="primary-btn place-order-submit-btn" 
+              disabled={submitting}
+            >
+              <Lock size={18} />
+              <span>
+                {submitting
+                  ? "Processing Order..."
+                  : form.paymentMethod === "COD"
+                  ? `Place COD Order • ₹${finalAmount?.toLocaleString("en-IN")}`
+                  : `Pay Online • ₹${finalAmount?.toLocaleString("en-IN")}`}
+              </span>
+            </button>
+
+            <div className="checkout-security-guarantee">
+              <ShieldCheck size={16} />
+              <span>256-bit SSL encrypted & Razorpay verified</span>
+            </div>
+          </div>
+        </aside>
       </form>
     </div>
   );

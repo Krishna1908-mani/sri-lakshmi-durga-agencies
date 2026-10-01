@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const supabase = require("../config/supabase");
 const { protectAdmin } = require("../middleware/authMiddleware");
 const sendEmail = require("../utils/sendEmail");
 
@@ -9,10 +9,41 @@ const router = express.Router();
 
 const generateToken = (id) => {
   const secret = process.env.JWT_SECRET || "fallback_default_jwt_secret_dev_only";
-  return jwt.sign({ id }, secret, {
+  return jwt.sign({ id: String(id) }, secret, {
     expiresIn: "30d",
   });
 };
+
+async function findUserByEmail(email) {
+  if (!email) return null;
+  const trimmedEmail = String(email).toLowerCase().trim();
+
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", trimmedEmail)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        _id: String(data.id),
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        resetOtp: data.resetOtp || "",
+        resetOtpExpire: data.resetOtpExpire || null,
+        legacy_mongo_id: data.legacy_mongo_id || null,
+      };
+    }
+  } catch (sbErr) {
+    console.error("Supabase findUserByEmail error:", sbErr.message);
+  }
+
+  return null;
+}
 
 // Customer register
 router.post("/register", async (req, res) => {
@@ -27,7 +58,7 @@ router.post("/register", async (req, res) => {
     }
 
     const trimmedEmail = email.toLowerCase().trim();
-    const existingUser = await User.findOne({ email: trimmedEmail });
+    const existingUser = await findUserByEmail(trimmedEmail);
 
     if (existingUser) {
       return res.status(400).json({
@@ -38,21 +69,33 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      name: name.trim(),
-      email: trimmedEmail,
-      password: hashedPassword,
-      role: "customer",
-    });
+    const { data, error } = await supabase
+      .from("users")
+      .insert({
+        name: name.trim(),
+        email: trimmedEmail,
+        password: hashedPassword,
+        role: "customer",
+      })
+      .select("id, name, email, role")
+      .single();
+
+    if (error || !data) {
+      return res.status(500).json({
+        success: false,
+        message: "Registration failed",
+        error: error?.message,
+      });
+    }
 
     res.status(201).json({
       success: true,
       message: "Registration successful",
-      token: generateToken(user._id),
+      token: generateToken(data.id),
       user: {
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        name: data.name,
+        email: data.email,
+        role: data.role,
       },
     });
   } catch (error) {
@@ -64,10 +107,10 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Customer login
+// User / Admin login (Supports both Customer and Admin)
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -77,13 +120,29 @@ router.post("/login", async (req, res) => {
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
-    const user = await User.findOne({ email: trimmedEmail });
+    const user = await findUserByEmail(trimmedEmail);
 
-    if (!user || user.role !== "customer") {
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid customer credentials",
+        message: role === "admin" ? "Invalid admin email or password" : "Invalid email or password",
       });
+    }
+
+    // Role check if explicitly requested
+    if (role && user.role !== role) {
+      if (role === "admin" && user.role === "customer") {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied. This account does not have administrator privileges.",
+        });
+      }
+      if (role === "customer" && user.role === "admin") {
+        return res.status(400).json({
+          success: false,
+          message: "This account has administrator privileges. Please switch to the Admin login tab.",
+        });
+      }
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -91,15 +150,16 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid customer credentials",
+        message: role === "admin" ? "Invalid admin email or password" : "Invalid email or password",
       });
     }
 
     res.json({
       success: true,
-      message: "Login successful",
-      token: generateToken(user._id),
+      message: `${user.role === "admin" ? "Admin" : "Customer"} login successful`,
+      token: generateToken(user.id),
       user: {
+        id: String(user.id),
         name: user.name,
         email: user.email,
         role: user.role,
@@ -109,6 +169,7 @@ router.post("/login", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Login failed",
+      error: error.message,
     });
   }
 });
@@ -126,12 +187,9 @@ router.post("/admin/login", async (req, res) => {
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
-    const admin = await User.findOne({
-      email: trimmedEmail,
-      role: "admin",
-    });
+    const admin = await findUserByEmail(trimmedEmail);
 
-    if (!admin) {
+    if (!admin || admin.role !== "admin") {
       return res.status(401).json({
         success: false,
         message: "Invalid admin email or password",
@@ -150,7 +208,7 @@ router.post("/admin/login", async (req, res) => {
     res.json({
       success: true,
       message: "Admin login successful",
-      token: generateToken(admin._id),
+      token: generateToken(admin.id),
       user: {
         name: admin.name,
         email: admin.email,
@@ -178,7 +236,7 @@ router.put("/admin/update-profile", protectAdmin, async (req, res) => {
       });
     }
 
-    const admin = await User.findById(req.user._id || req.user.id);
+    const admin = await findUserByEmail(req.user.email);
 
     if (!admin || admin.role !== "admin") {
       return res.status(403).json({
@@ -196,40 +254,46 @@ router.put("/admin/update-profile", protectAdmin, async (req, res) => {
       });
     }
 
-    if (email && email.toLowerCase().trim() !== admin.email) {
-      const emailExists = await User.findOne({
-        email: email.toLowerCase().trim(),
-        _id: { $ne: admin._id },
-      });
+    const updates = {};
+    if (name) updates.name = name.trim();
 
-      if (emailExists) {
+    if (email && email.toLowerCase().trim() !== admin.email) {
+      const newEmail = email.toLowerCase().trim();
+      const emailExists = await findUserByEmail(newEmail);
+
+      if (emailExists && String(emailExists.id) !== String(admin.id)) {
         return res.status(400).json({
           success: false,
           message: "Email already used by another account",
         });
       }
 
-      admin.email = email.toLowerCase().trim();
-    }
-
-    if (name) {
-      admin.name = name.trim();
+      updates.email = newEmail;
     }
 
     if (newPassword && newPassword.trim().length > 0) {
-      admin.password = await bcrypt.hash(newPassword, 10);
+      updates.password = await bcrypt.hash(newPassword, 10);
     }
 
-    await admin.save();
+    const { data: updatedAdmin, error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", admin.id)
+      .select("name, email, role")
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update admin profile",
+        error: error.message,
+      });
+    }
 
     res.json({
       success: true,
       message: "Admin profile updated successfully",
-      user: {
-        name: admin.name,
-        email: admin.email,
-        role: admin.role,
-      },
+      user: updatedAdmin,
     });
   } catch (error) {
     res.status(500).json({
@@ -253,7 +317,7 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
-    const user = await User.findOne({ email: trimmedEmail });
+    const user = await findUserByEmail(trimmedEmail);
 
     if (!user || user.role !== "customer") {
       return res.status(404).json({
@@ -263,11 +327,24 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expireTime = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    user.resetOtp = await bcrypt.hash(otp, 10);
-    user.resetOtpExpire = Date.now() + 10 * 60 * 1000;
+    const { error } = await supabase
+      .from("users")
+      .update({
+        resetOtp: hashedOtp,
+        resetOtpExpire: expireTime,
+      })
+      .eq("id", user.id);
 
-    await user.save();
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to set reset token",
+        error: error.message,
+      });
+    }
 
     await sendEmail({
       to: user.email,
@@ -290,7 +367,6 @@ router.post("/forgot-password", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-
     res.status(500).json({
       success: false,
       message: "Failed to send OTP email",
@@ -312,7 +388,7 @@ router.post("/reset-password", async (req, res) => {
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
-    const user = await User.findOne({ email: trimmedEmail });
+    const user = await findUserByEmail(trimmedEmail);
 
     if (!user || user.role !== "customer") {
       return res.status(404).json({
@@ -328,7 +404,7 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    if (user.resetOtpExpire < Date.now()) {
+    if (new Date(user.resetOtpExpire).getTime() < Date.now()) {
       return res.status(400).json({
         success: false,
         message: "OTP expired. Request new OTP",
@@ -344,11 +420,24 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.resetOtp = "";
-    user.resetOtpExpire = undefined;
+    const newHashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await user.save();
+    const { error } = await supabase
+      .from("users")
+      .update({
+        password: newHashedPassword,
+        resetOtp: "",
+        resetOtpExpire: null,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Password reset failed",
+        error: error.message,
+      });
+    }
 
     res.json({
       success: true,

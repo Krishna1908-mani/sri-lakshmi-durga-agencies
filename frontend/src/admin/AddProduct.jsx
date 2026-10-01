@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { 
+  PlusCircle, 
+  Upload, 
+  Image as ImageIcon, 
+  Check, 
+  ArrowLeft,
+  X,
+  Sparkles
+} from "lucide-react";
 import API from "../api/axios";
+import AdminNavbar from "./AdminNavbar";
 
 function AddProduct() {
   const navigate = useNavigate();
@@ -23,6 +33,7 @@ function AddProduct() {
   const [mainImagePreview, setMainImagePreview] = useState("");
   const [galleryPreviews, setGalleryPreviews] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -30,7 +41,6 @@ function AddProduct() {
 
   const uploadMainImage = async (e) => {
     const file = e.target.files[0];
-
     if (!file) return;
 
     const previewUrl = URL.createObjectURL(file);
@@ -41,7 +51,6 @@ function AddProduct() {
 
     try {
       setUploading(true);
-
       const res = await API.post("/upload/product-image", imageData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -49,12 +58,12 @@ function AddProduct() {
         },
       });
 
-      setForm({
-        ...form,
+      setForm((prev) => ({
+        ...prev,
         image: res.data.imageUrl,
-      });
+      }));
 
-      alert("Main image uploaded successfully");
+      alert("Main image uploaded successfully!");
     } catch (error) {
       console.log(error);
       alert("Main image upload failed");
@@ -65,21 +74,18 @@ function AddProduct() {
 
   const uploadGalleryImages = async (e) => {
     const files = Array.from(e.target.files);
-
     if (files.length === 0) return;
 
     const previews = files.map((file) => URL.createObjectURL(file));
     setGalleryPreviews(previews);
 
     const imageData = new FormData();
-
     files.forEach((file) => {
       imageData.append("images", file);
     });
 
     try {
       setUploading(true);
-
       const res = await API.post("/upload/product-images", imageData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -87,12 +93,12 @@ function AddProduct() {
         },
       });
 
-      setForm({
-        ...form,
+      setForm((prev) => ({
+        ...prev,
         images: res.data.imageUrls,
-      });
+      }));
 
-      alert("Gallery images uploaded successfully");
+      alert("Gallery images uploaded successfully!");
     } catch (error) {
       console.log(error);
       alert("Gallery images upload failed");
@@ -101,178 +107,278 @@ function AddProduct() {
     }
   };
 
-  const submitProduct = async (e) => {
+  const createProduct = async (e) => {
     e.preventDefault();
 
     if (!form.image) {
-      alert("Please upload main product image");
+      alert("Please upload or enter a main image URL");
       return;
     }
 
     try {
-      const productData = {
-        name: form.name,
-        category: form.category,
-        price: Number(form.price),
-        oldPrice: Number(form.oldPrice),
-        sizes: form.sizes
-          .split(",")
-          .map((size) => size.trim())
-          .filter((size) => size !== ""),
-        colors: form.colors
-          .split(",")
-          .map((color) => color.trim())
-          .filter((color) => color !== ""),
-        fabric: form.fabric,
-        stock: Number(form.stock),
-        image: form.image,
-        images: form.images.length > 0 ? form.images : [form.image],
-        description: form.description,
-      };
-
-      await API.post("/products", productData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      setSubmitting(true);
+      await API.post(
+        "/products",
+        {
+          ...form,
+          price: Number(form.price),
+          oldPrice: form.oldPrice ? Number(form.oldPrice) : 0,
+          stock: Number(form.stock),
+          sizes: form.sizes
+            ? form.sizes.split(",").map((s) => s.trim()).filter(Boolean)
+            : [],
+          colors: form.colors
+            ? form.colors.split(",").map((c) => c.trim()).filter(Boolean)
+            : [],
         },
-      });
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      alert("Product added successfully");
+      alert("Product created successfully!");
       navigate("/admin/products");
     } catch (error) {
       console.log(error);
-      alert(error.response?.data?.message || "Failed to add product");
+      alert(error.response?.data?.message || "Failed to create product");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <div>
-          <h1>Add Product</h1>
-          <p>Add new product with main image and gallery images</p>
+    <div className="admin-page-layout">
+      <AdminNavbar />
+
+      <main className="admin-main-content">
+        <div className="admin-page-top-bar">
+          <div>
+            <h1>Add New Product</h1>
+            <p>Create a new product listing in your catalog</p>
+          </div>
+
+          <div className="top-bar-actions">
+            <Link to="/admin/products" className="secondary-btn">
+              <ArrowLeft size={16} />
+              <span>Back to Products</span>
+            </Link>
+          </div>
         </div>
 
-        <Link to="/admin/products" className="back-btn">
-          Back
-        </Link>
-      </div>
+        <form className="admin-form-container" onSubmit={createProduct}>
+          {/* Section 1: General Info */}
+          <div className="admin-form-card">
+            <h2 className="form-card-title">General Information</h2>
 
-      <form className="admin-form" onSubmit={submitProduct}>
-        <input
-          name="name"
-          placeholder="Product Name"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
+            <div className="admin-form-grid">
+              <div className="form-group span-2">
+                <label htmlFor="prod-name">Product Title *</label>
+                <input
+                  id="prod-name"
+                  name="name"
+                  placeholder="e.g. Embroidered Anarkali Kurti with Dupatta"
+                  value={form.name}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                />
+              </div>
 
-        <input
-          name="category"
-          placeholder="Category example: Kurtis"
-          value={form.category}
-          onChange={handleChange}
-          required
-        />
+              <div className="form-group">
+                <label htmlFor="prod-cat">Category *</label>
+                <input
+                  id="prod-cat"
+                  name="category"
+                  placeholder="e.g. Kurtis, Dresses, Tops, Essentials"
+                  value={form.category}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                />
+              </div>
 
-        <input
-          name="price"
-          type="number"
-          placeholder="Selling Price"
-          value={form.price}
-          onChange={handleChange}
-          required
-        />
+              <div className="form-group">
+                <label htmlFor="prod-fabric">Fabric Details</label>
+                <input
+                  id="prod-fabric"
+                  name="fabric"
+                  placeholder="e.g. Pure Cotton, Rayon, Silk Blend"
+                  value={form.fabric}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+              </div>
 
-        <input
-          name="oldPrice"
-          type="number"
-          placeholder="Old Price"
-          value={form.oldPrice}
-          onChange={handleChange}
-        />
-
-        <input
-          name="sizes"
-          placeholder="Sizes example: S, M, L, XL"
-          value={form.sizes}
-          onChange={handleChange}
-        />
-
-        <input
-          name="colors"
-          placeholder="Colors example: Red, Blue, Pink"
-          value={form.colors}
-          onChange={handleChange}
-        />
-
-        <input
-          name="fabric"
-          placeholder="Fabric example: Cotton"
-          value={form.fabric}
-          onChange={handleChange}
-        />
-
-        <input
-          name="stock"
-          type="number"
-          placeholder="Stock Quantity"
-          value={form.stock}
-          onChange={handleChange}
-          required
-        />
-
-        <div className="upload-box">
-          <label>Main Product Image</label>
-
-          <input type="file" accept="image/*" onChange={uploadMainImage} />
-
-          {mainImagePreview && (
-            <img
-              src={mainImagePreview}
-              alt="Main Preview"
-              className="upload-preview"
-            />
-          )}
-        </div>
-
-        <div className="upload-box">
-          <label>Gallery Images</label>
-
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={uploadGalleryImages}
-          />
-
-          {galleryPreviews.length > 0 && (
-            <div className="gallery-preview-box">
-              {galleryPreviews.map((img, index) => (
-                <img key={index} src={img} alt="Gallery Preview" />
-              ))}
+              <div className="form-group span-2">
+                <label htmlFor="prod-desc">Product Description *</label>
+                <textarea
+                  id="prod-desc"
+                  name="description"
+                  placeholder="Describe the fabric quality, stitching, occasion suitability, fit, and care instructions..."
+                  value={form.description}
+                  onChange={handleChange}
+                  className="form-textarea"
+                  rows={4}
+                  required
+                />
+              </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        <input
-          name="image"
-          placeholder="Product Image URL"
-          value={form.image}
-          onChange={handleChange}
-        />
+          {/* Section 2: Pricing & Stock */}
+          <div className="admin-form-card">
+            <h2 className="form-card-title">Pricing & Inventory</h2>
 
-        <textarea
-          name="description"
-          placeholder="Product Description"
-          value={form.description}
-          onChange={handleChange}
-          required
-        />
+            <div className="admin-form-grid">
+              <div className="form-group">
+                <label htmlFor="prod-price">Selling Price (₹) *</label>
+                <input
+                  id="prod-price"
+                  name="price"
+                  type="number"
+                  placeholder="e.g. 799"
+                  value={form.price}
+                  onChange={handleChange}
+                  className="form-input"
+                  min="0"
+                  required
+                />
+              </div>
 
-        <button type="submit" disabled={uploading}>
-          {uploading ? "Uploading..." : "Add Product"}
-        </button>
-      </form>
+              <div className="form-group">
+                <label htmlFor="prod-oldprice">Original / Strikethrough Price (₹)</label>
+                <input
+                  id="prod-oldprice"
+                  name="oldPrice"
+                  type="number"
+                  placeholder="e.g. 1299"
+                  value={form.oldPrice}
+                  onChange={handleChange}
+                  className="form-input"
+                  min="0"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="prod-stock">Available Warehouse Stock *</label>
+                <input
+                  id="prod-stock"
+                  name="stock"
+                  type="number"
+                  placeholder="e.g. 25"
+                  value={form.stock}
+                  onChange={handleChange}
+                  className="form-input"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="prod-sizes">Sizes (Comma separated)</label>
+                <input
+                  id="prod-sizes"
+                  name="sizes"
+                  placeholder="e.g. S, M, L, XL, XXL, Free Size"
+                  value={form.sizes}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group span-2">
+                <label htmlFor="prod-colors">Colors (Comma separated)</label>
+                <input
+                  id="prod-colors"
+                  name="colors"
+                  placeholder="e.g. Maroon, Emerald Green, Navy Blue, Mustard"
+                  value={form.colors}
+                  onChange={handleChange}
+                  className="form-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Media Upload */}
+          <div className="admin-form-card">
+            <h2 className="form-card-title">Product Media & Images</h2>
+
+            <div className="media-upload-section">
+              <div className="upload-block">
+                <label>Main Product Image *</label>
+                <div className="file-input-card">
+                  <Upload size={24} className="upload-icon" />
+                  <span>Choose file or drag & drop</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={uploadMainImage}
+                    className="file-input-hidden"
+                  />
+                </div>
+
+                <div className="manual-url-wrap">
+                  <span className="or-text">or Image URL</span>
+                  <input
+                    name="image"
+                    placeholder="https://example.com/image.jpg"
+                    value={form.image}
+                    onChange={handleChange}
+                    className="form-input"
+                  />
+                </div>
+
+                {(mainImagePreview || form.image) && (
+                  <div className="image-preview-box">
+                    <img
+                      src={mainImagePreview || form.image}
+                      alt="Main Preview"
+                      className="preview-img"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="upload-block">
+                <label>Additional Gallery Images</label>
+                <div className="file-input-card">
+                  <ImageIcon size={24} className="upload-icon" />
+                  <span>Select multiple images</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={uploadGalleryImages}
+                    className="file-input-hidden"
+                  />
+                </div>
+
+                {galleryPreviews.length > 0 && (
+                  <div className="gallery-previews-grid">
+                    {galleryPreviews.map((img, i) => (
+                      <img key={i} src={img} alt={`Gallery ${i}`} className="gallery-thumb" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-form-actions">
+            <button
+              type="submit"
+              className="primary-btn submit-product-btn"
+              disabled={uploading || submitting}
+            >
+              <PlusCircle size={18} />
+              <span>{submitting ? "Publishing Product..." : "Publish Product"}</span>
+            </button>
+          </div>
+        </form>
+      </main>
     </div>
   );
 }

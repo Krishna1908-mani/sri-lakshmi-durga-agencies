@@ -17,7 +17,7 @@ export function CartProvider({ children }) {
   }, [cartItems]);
 
   const addToCart = (product, selectedSize = "") => {
-    const productId = product._id || product.productId;
+    const productId = product.id || product._id || product.productId;
 
     const existingItem = cartItems.find(
       (item) =>

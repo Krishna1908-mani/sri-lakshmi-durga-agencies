@@ -1,25 +1,262 @@
+:root {
+  /* ==========================================================================
+     SRI LAKSHMI DURGA AGENCIES — LUXURY D2C DESIGN SYSTEM
+     High-contrast Emerald, Vivid Ruby/Rose, 24K Saffron Gold & Obsidian Ink
+     ========================================================================== */
+
+  /* --- Canonical Theme Tokens --- */
+  --primary: #059669;
+  --primary-dark: #047857;
+  --primary-light: #ecfdf5;
+  --accent: #e11d48;
+  --accent-dark: #be123c;
+  --accent-light: #ffe4e6;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* --- Primary: Royal Emerald Palette --- */
+  --primary-50: #ecfdf5;
+  --primary-100: #d1fae5;
+  --primary-200: #a7f3d0;
+  --primary-300: #6ee7b7;
+  --primary-400: #34d399;
+  --primary-500: #10b981;
+  --primary-600: #059669;
+  --primary-700: #047857;
+  --primary-800: #065f46;
+  --primary-900: #064e3b;
+  --primary-950: #022c22;
+
+  /* --- Secondary: Vivid Ruby & Couture Rose --- */
+  --accent-ruby: #e11d48;
+  --accent-ruby-dark: #be123c;
+  --accent-ruby-light: #ffe4e6;
+  --accent-rose: #be185d;
+  --accent-rose-light: #fce7ef;
+
+  /* --- Accent: 24K Champagne & Saffron Gold --- */
+  --accent-gold: #f59e0b;
+  --accent-gold-dark: #b45309;
+  --accent-gold-light: #fffbeb;
+  --accent-gold-border: #fde68a;
+
+  /* --- Dynamic Accents for Categories --- */
+  --accent-emerald: #059669;
+  --accent-sapphire: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-amber: #d97706;
+
+  /* --- Ultra-Sharp High-Definition Neutrals (Slate / Onyx) --- */
+  --neutral-50: #f8fafc;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-400: #94a3b8;
+  --neutral-500: #64748b;
+  --neutral-600: #475569;
+  --neutral-700: #334155;
+  --neutral-800: #1e293b;
+  --neutral-900: #0f172a;
+  --neutral-950: #09090b;
+
+  /* --- Surfaces & Razor-Sharp Borders --- */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-surface-glass: rgba(255, 255, 255, 0.88);
+  --border-subtle: #e2e8f0;
+  --border-card: #e5e7eb;
+  --border-focus: #059669;
+
+  /* --- Gradients --- */
+  --gradient-primary: linear-gradient(135deg, #059669 0%, #047857 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  --gradient-ruby: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  --gradient-gold: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-hero: linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #f8fafc 100%);
+  --gradient-card: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+
+  /* --- Typography Tokens --- */
+  --font-display: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Fluid Type Scale */
+  --text-2xs: clamp(0.6875rem, 0.65rem + 0.15vw, 0.75rem);
+  --text-xs: clamp(0.75rem, 0.72rem + 0.2vw, 0.8125rem);
+  --text-sm: clamp(0.8125rem, 0.78rem + 0.25vw, 0.875rem);
+  --text-base: clamp(0.9375rem, 0.9rem + 0.3vw, 1rem);
+  --text-lg: clamp(1.0625rem, 1rem + 0.4vw, 1.1875rem);
+  --text-xl: clamp(1.25rem, 1.15rem + 0.6vw, 1.375rem);
+  --text-2xl: clamp(1.5rem, 1.35rem + 0.8vw, 1.75rem);
+  --text-3xl: clamp(1.875rem, 1.65rem + 1.2vw, 2.25rem);
+  --text-4xl: clamp(2.25rem, 1.95rem + 1.6vw, 3rem);
+  --text-hero: clamp(2.5rem, 2.1rem + 2vw, 3.75rem);
+
+  /* Fluid Spacing Scale */
+  --space-3xs: clamp(0.25rem, 0.22rem + 0.1vw, 0.3125rem);
+  --space-2xs: clamp(0.375rem, 0.35rem + 0.15vw, 0.5rem);
+  --space-xs: clamp(0.5rem, 0.45rem + 0.25vw, 0.625rem);
+  --space-sm: clamp(0.75rem, 0.7rem + 0.3vw, 0.875rem);
+  --space-md: clamp(1rem, 0.95rem + 0.4vw, 1.25rem);
+  --space-lg: clamp(1.25rem, 1.15rem + 0.6vw, 1.5rem);
+  --space-xl: clamp(1.5rem, 1.35rem + 0.8vw, 2rem);
+  --space-2xl: clamp(2rem, 1.75rem + 1.2vw, 2.75rem);
+  --space-3xl: clamp(2.5rem, 2.1rem + 1.8vw, 3.5rem);
+
+  /* --- Crisp High-Definition Shadows --- */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 10px 18px -3px rgba(15, 23, 42, 0.09), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-glow: 0 0 24px -2px rgba(5, 150, 105, 0.28);
+  --shadow-ruby-glow: 0 0 20px -2px rgba(225, 29, 72, 0.32);
+
+  /* --- Radii Tokens --- */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-full: 9999px;
+
+  /* --- Micro-Interaction Timings --- */
+  --transition-fast: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  font-family: Arial, sans-serif;
-  background: #fff8fb;
-  color: #2d1b24;
+  font-family: var(--font-sans);
+  background: var(--bg-app);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(5, 150, 105, 0.035) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(225, 29, 72, 0.025) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--neutral-950);
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
-button {
+button, input, select, textarea {
   font-family: inherit;
+}
+
+/* Accessibility Focus Rings */
+:focus-visible {
+  outline: 2px solid var(--primary-600);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--neutral-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neutral-300);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neutral-400);
+}
+
+/* Micro-Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }

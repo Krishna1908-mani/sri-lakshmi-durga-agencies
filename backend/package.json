@@ -5,13 +5,21 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "migrate:products": "node scripts/migrateProductsToSupabase.js",
+    "migrate:banners": "node scripts/migrateHomeBannersToSupabase.js",
+    "migrate:coupons": "node scripts/migrateCouponsToSupabase.js",
+    "migrate:users": "node scripts/migrateUsersToSupabase.js",
+    "migrate:orders": "node scripts/migrateOrdersToSupabase.js",
+    "migrate:all": "node scripts/migrateCouponsToSupabase.js && node scripts/migrateUsersToSupabase.js && node scripts/migrateOrdersToSupabase.js",
+    "detect:orphans": "node scripts/detectOrphanImages.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
@@ -20,7 +28,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.0",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.11",
+    "nodemailer": "^10.0.13",
     "razorpay": "^2.9.6"
   },
   "devDependencies": {

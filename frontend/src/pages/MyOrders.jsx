@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { 
+  Package, 
+  Compass, 
+  Calendar, 
+  CreditCard, 
+  Tag, 
+  XCircle, 
+  CheckCircle, 
+  Clock, 
+  Truck,
+  ArrowRight,
+  ShoppingBag
+} from "lucide-react";
 import API from "../api/axios";
 
 function MyOrders() {
@@ -7,20 +20,24 @@ function MyOrders() {
   const token = localStorage.getItem("userToken");
 
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchMyOrders = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await API.get("/orders/my-orders", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      setOrders(res.data.orders);
+      setOrders(res.data.orders || []);
     } catch (error) {
       console.log(error);
       alert("Please login to view your orders");
       navigate("/login");
+    } finally {
+      setLoading(false);
     }
   }, [token, navigate]);
 
@@ -47,32 +64,66 @@ function MyOrders() {
   };
 
   useEffect(() => {
-    const loadOrders = async () => {
-      if (!token) {
-        navigate("/login");
-        return;
-      }
+    if (!token) {
+      navigate("/login");
+      return;
+    }
 
-      await fetchMyOrders();
-    };
-
-    loadOrders();
+    fetchMyOrders();
   }, [fetchMyOrders, navigate, token]);
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Delivered":
+        return "status-delivered";
+      case "Cancelled":
+      case "Returned":
+        return "status-cancelled";
+      case "Shipped":
+      case "Out for Delivery":
+        return "status-shipped";
+      case "Confirmed":
+      case "Packed":
+        return "status-processing";
+      default:
+        return "status-placed";
+    }
+  };
+
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1>My Orders</h1>
-        <p>View your order history and delivery status</p>
+    <div className="page my-orders-page">
+      <div className="orders-page-header">
+        <div>
+          <div className="orders-title-row">
+            <h1>Order History</h1>
+            {orders.length > 0 && (
+              <span className="orders-count-badge">{orders.length} {orders.length === 1 ? "Order" : "Orders"}</span>
+            )}
+          </div>
+          <p className="orders-subtitle">Track, review, or manage your purchases</p>
+        </div>
+
+        <Link to="/track-order" className="track-order-top-link">
+          <Compass size={16} />
+          <span>Track Any Order</span>
+        </Link>
       </div>
 
-      {orders.length === 0 ? (
-        <div className="no-products">
-          <h2>No orders found</h2>
-          <p>Start shopping to place your first order.</p>
-
-          <Link to="/shop" className="primary-btn">
-            Shop Now
+      {loading ? (
+        <div className="orders-loading-state">
+          <div className="loading-spinner"></div>
+          <p>Retrieving your orders...</p>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="orders-empty-state">
+          <div className="empty-orders-illustration">
+            <Package size={52} strokeWidth={1.5} className="empty-orders-icon" />
+          </div>
+          <h2>No Orders Found</h2>
+          <p>You haven't placed any orders yet. Discover our latest collections and find something you love!</p>
+          <Link to="/shop" className="primary-btn empty-orders-cta">
+            <ShoppingBag size={18} />
+            <span>Start Shopping</span>
           </Link>
         </div>
       ) : (
@@ -81,66 +132,97 @@ function MyOrders() {
             const canCancel = ["Order Placed", "Confirmed", "Packed"].includes(
               order.orderStatus
             );
+            const statusClass = getStatusColor(order.orderStatus);
 
             return (
-              <div className="admin-order-card" key={order._id}>
-                <div className="order-top">
-                  <div>
-                    <h3>{order.orderId}</h3>
-
-                    <p>
-                      <strong>Status:</strong> {order.orderStatus}
-                    </p>
-
-                    <p>
-                      <strong>Payment:</strong> {order.paymentStatus}
-                    </p>
-
-                    {order.couponCode && (
-                      <p className="discount-text">
-                        <strong>Coupon:</strong> {order.couponCode} (-₹
-                        {order.discountAmount})
-                      </p>
+              <article className="order-history-card" key={order._id}>
+                {/* Header */}
+                <div className="order-card-header">
+                  <div className="order-id-group">
+                    <span className="order-id-label">ORDER ID</span>
+                    <strong className="order-id-val">{order.orderId}</strong>
+                    {order.createdAt && (
+                      <span className="order-date-pill">
+                        <Calendar size={13} />
+                        {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric"
+                        })}
+                      </span>
                     )}
-
-                    <p>
-                      <strong>Tracking ID:</strong>{" "}
-                      {order.trackingId || "Not added yet"}
-                    </p>
                   </div>
 
-                  <div>
-                    <h3>₹{order.finalAmount}</h3>
-                    <p>{order.paymentMethod}</p>
+                  <div className="order-header-right">
+                    <span className={`order-status-badge ${statusClass}`}>
+                      {order.orderStatus}
+                    </span>
+                    <strong className="order-final-amount">
+                      ₹{order.finalAmount?.toLocaleString("en-IN")}
+                    </strong>
                   </div>
                 </div>
 
+                {/* Tracking & Info bar */}
+                <div className="order-info-strip">
+                  <div className="info-strip-item">
+                    <span className="info-label">Payment:</span>
+                    <strong className="info-val">{order.paymentMethod} ({order.paymentStatus})</strong>
+                  </div>
+
+                  {order.trackingId && (
+                    <div className="info-strip-item">
+                      <span className="info-label">Tracking / AWB:</span>
+                      <strong className="info-val tracking-code">{order.trackingId}</strong>
+                    </div>
+                  )}
+
+                  {order.couponCode && (
+                    <div className="info-strip-item coupon-item">
+                      <Tag size={13} />
+                      <span>{order.couponCode} (-₹{order.discountAmount})</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Items Box */}
                 <div className="order-items-box">
-                  <h4>Items</h4>
-
-                  {order.items.map((item, index) => (
-                    <p key={index}>
-                      {item.name} | Size: {item.selectedSize} | Qty:{" "}
-                      {item.quantity} | ₹{item.price}
-                    </p>
-                  ))}
+                  <h4 className="items-heading">Purchased Items ({order.items.length})</h4>
+                  <div className="order-items-grid">
+                    {order.items.map((item, index) => (
+                      <div className="order-item-chip" key={index}>
+                        <div className="order-item-bullet-dot"></div>
+                        <div className="order-item-desc">
+                          <span className="order-item-name">{item.name}</span>
+                          <span className="order-item-specs">
+                            {item.selectedSize ? `Size: ${item.selectedSize} • ` : ""}
+                            Qty: {item.quantity} • ₹{item.price?.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="order-action-row">
-                  <Link to="/track-order" className="primary-btn">
-                    Track Order
+                {/* Actions Footer */}
+                <div className="order-actions-bar">
+                  <Link to="/track-order" className="primary-btn order-track-cta">
+                    <Compass size={16} />
+                    <span>Track Status</span>
                   </Link>
 
                   {canCancel && (
                     <button
-                      className="cancel-order-btn"
+                      type="button"
+                      className="cancel-order-pill-btn"
                       onClick={() => cancelOrder(order._id)}
                     >
-                      Cancel Order
+                      <XCircle size={15} />
+                      <span>Cancel Order</span>
                     </button>
                   )}
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>

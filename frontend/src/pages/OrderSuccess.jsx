@@ -1,4 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
+import { 
+  CheckCircle2, 
+  Printer, 
+  Compass, 
+  ShoppingBag, 
+  Sparkles, 
+  FileText,
+  Mail,
+  Phone,
+  ArrowRight
+} from "lucide-react";
 
 function OrderSuccess() {
   const location = useLocation();
@@ -11,11 +22,12 @@ function OrderSuccess() {
   if (!order) {
     return (
       <div className="page order-success-page">
-        <div className="success-box">
-          <h1>No Order Found</h1>
-          <p>Please place an order first.</p>
+        <div className="order-empty-success-card">
+          <FileText size={48} className="empty-icon" />
+          <h1>No Active Order Found</h1>
+          <p>It looks like you haven't placed an order yet or this session has expired.</p>
           <Link to="/shop" className="primary-btn">
-            Go to Shop
+            <span>Explore Collection</span>
           </Link>
         </div>
       </div>
@@ -24,134 +36,162 @@ function OrderSuccess() {
 
   return (
     <div className="page order-success-page">
-      <div className="success-box invoice-box">
-        <div className="success-icon">✓</div>
+      {/* Celebration Banner */}
+      <div className="order-success-hero">
+        <div className="success-icon-badge">
+          <CheckCircle2 size={44} className="check-svg" />
+        </div>
+        <span className="success-eyebrow">ORDER CONFIRMED</span>
+        <h1>Thank You for Your Order!</h1>
+        <p className="success-subtitle">
+          Your order has been placed successfully and is being prepared for dispatch.
+        </p>
 
-        <h1>Order Placed Successfully!</h1>
-        <p>Thank you for shopping with Sri Lakshmi Durga Agencies.</p>
+        <div className="success-quick-ctas">
+          <button type="button" onClick={printInvoice} className="primary-btn print-cta-btn">
+            <Printer size={16} />
+            <span>Print / Download Invoice</span>
+          </button>
 
-        <div className="invoice-header">
-          <div>
-            <h2>Sri Lakshmi Durga Agencies</h2>
-            <p>Ladies Clothing & Essentials Store</p>
-            <p>Phone: +91 9949677382</p>
-            <p>Email: support@srilakshmidurga.com</p>
+          <Link to="/track-order" className="secondary-btn track-cta-btn">
+            <Compass size={16} />
+            <span>Track Delivery</span>
+          </Link>
+
+          <Link to="/shop" className="tertiary-link">
+            <span>Continue Shopping</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+
+      {/* Invoice Card */}
+      <div className="invoice-container-card">
+        {/* Invoice Top Header */}
+        <div className="invoice-brand-header">
+          <div className="invoice-company-info">
+            <div className="invoice-brand-title">
+              <Sparkles size={20} className="sparkle-accent" />
+              <h2>Sri Lakshmi Durga Agencies</h2>
+            </div>
+            <p className="company-tagline">Premium Ladies Clothing, Kurtis & Daily Essentials</p>
+            <div className="company-contact-row">
+              <span><Phone size={13} /> +91 9949677382</span>
+              <span><Mail size={13} /> support@srilakshmidurga.com</span>
+            </div>
           </div>
 
-          <div>
-            <h3>Invoice</h3>
-            <p>
-              <strong>Order ID:</strong> {order.orderId}
-            </p>
-            <p>
-              <strong>Date:</strong>{" "}
-              {order.createdAt
-                ? new Date(order.createdAt).toLocaleDateString("en-IN")
-                : new Date().toLocaleDateString("en-IN")}
-            </p>
+          <div className="invoice-meta-info">
+            <div className="invoice-badge">TAX INVOICE</div>
+            <div className="invoice-meta-row">
+              <span className="meta-label">Order ID:</span>
+              <strong className="meta-val">{order.orderId}</strong>
+            </div>
+            <div className="invoice-meta-row">
+              <span className="meta-label">Date:</span>
+              <span className="meta-val">
+                {order.createdAt
+                  ? new Date(order.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric"
+                    })
+                  : new Date().toLocaleDateString("en-IN")}
+              </span>
+            </div>
+            <div className="invoice-meta-row">
+              <span className="meta-label">Payment:</span>
+              <span className="meta-val">{order.paymentMethod} ({order.paymentStatus})</span>
+            </div>
           </div>
         </div>
 
-        <div className="success-details">
+        {/* Customer Details Strip */}
+        <div className="invoice-customer-strip">
           <h3>Customer Details</h3>
-
-          <p>
-            <strong>Name:</strong> {order.customer?.name}
-          </p>
-
-          <p>
-            <strong>Mobile:</strong> {order.customer?.mobile}
-          </p>
-
-          <p>
-            <strong>Email:</strong> {order.customer?.email}
-          </p>
-
-          <p>
-            <strong>Address:</strong> {order.customer?.address},{" "}
-            {order.customer?.city}, {order.customer?.state} -{" "}
-            {order.customer?.pincode}
-          </p>
+          <div className="customer-details-grid">
+            <div>
+              <span className="detail-label">Name</span>
+              <strong>{order.customer?.name}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Mobile</span>
+              <strong>{order.customer?.mobile}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Email</span>
+              <strong>{order.customer?.email}</strong>
+            </div>
+            <div className="span-full">
+              <span className="detail-label">Shipping Address</span>
+              <p>
+                {order.customer?.address}, {order.customer?.city},{" "}
+                {order.customer?.state} - {order.customer?.pincode}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="invoice-table-wrap">
-          <table className="invoice-table">
+        {/* Invoice Table */}
+        <div className="invoice-table-container">
+          <table className="order-invoice-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Size</th>
-                <th>Qty</th>
-                <th>Price</th>
-                <th>Total</th>
+                <th style={{ width: "45%" }}>Product Description</th>
+                <th style={{ textAlign: "center" }}>Size</th>
+                <th style={{ textAlign: "center" }}>Qty</th>
+                <th style={{ textAlign: "right" }}>Unit Price</th>
+                <th style={{ textAlign: "right" }}>Line Total</th>
               </tr>
             </thead>
-
             <tbody>
               {order.items?.map((item, index) => (
                 <tr key={index}>
-                  <td>{item.name}</td>
-                  <td>{item.selectedSize}</td>
-                  <td>{item.quantity}</td>
-                  <td>₹{item.price}</td>
-                  <td>₹{item.price * item.quantity}</td>
+                  <td>
+                    <strong className="item-name">{item.name}</strong>
+                  </td>
+                  <td style={{ textAlign: "center" }}>{item.selectedSize || "Standard"}</td>
+                  <td style={{ textAlign: "center" }}>{item.quantity}</td>
+                  <td style={{ textAlign: "right" }}>₹{item.price?.toLocaleString("en-IN")}</td>
+                  <td style={{ textAlign: "right" }}>
+                    ₹{(item.price * item.quantity)?.toLocaleString("en-IN")}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        <div className="invoice-total">
-          <p>
-            <strong>Product Total:</strong> ₹{order.totalAmount}
-          </p>
-
-          <p>
-            <strong>Delivery Charge:</strong> ₹{order.deliveryCharge || 0}
-          </p>
-
-          {order.couponCode && (
-            <p className="discount-text">
-              <strong>Coupon Applied:</strong> {order.couponCode}
-            </p>
-          )}
-
-          {order.discountAmount > 0 && (
-            <p className="discount-text">
-              <strong>Discount:</strong> -₹{order.discountAmount}
-            </p>
-          )}
-
-          <h2>Grand Total: ₹{order.finalAmount}</h2>
-
-          <p>
-            <strong>Payment Method:</strong> {order.paymentMethod}
-          </p>
-
-          <p>
-            <strong>Payment Status:</strong> {order.paymentStatus}
-          </p>
-
-          <p>
-            <strong>Order Status:</strong> {order.orderStatus}
-          </p>
+        {/* Invoice Totals */}
+        <div className="invoice-totals-wrapper">
+          <div className="invoice-totals-table">
+            <div className="totals-row">
+              <span>Items Total</span>
+              <span>₹{order.totalAmount?.toLocaleString("en-IN")}</span>
+            </div>
+            <div className="totals-row">
+              <span>Delivery Charge</span>
+              <span>
+                {order.deliveryCharge === 0 ? "FREE" : `₹${order.deliveryCharge}`}
+              </span>
+            </div>
+            {order.couponCode && (
+              <div className="totals-row discount-row">
+                <span>Coupon ({order.couponCode})</span>
+                <span>-₹{order.discountAmount?.toLocaleString("en-IN")}</span>
+              </div>
+            )}
+            <div className="totals-divider"></div>
+            <div className="totals-grand-row">
+              <span>Grand Total</span>
+              <span className="grand-price">₹{order.finalAmount?.toLocaleString("en-IN")}</span>
+            </div>
+          </div>
         </div>
 
-        <p className="invoice-note">
-          This is a computer-generated invoice. Thank you for shopping with us.
-        </p>
-
-        <div className="success-actions">
-          <button onClick={printInvoice} className="primary-btn">
-            Print / Download Invoice
-          </button>
-
-          <Link to="/track-order" className="primary-btn">
-            Track Order
-          </Link>
-
-          <Link to="/shop" className="secondary-btn">
-            Continue Shopping
-          </Link>
+        <div className="invoice-footer-note">
+          <p>This is a computer-generated tax invoice. No signature required.</p>
+          <p>Thank you for choosing Sri Lakshmi Durga Agencies!</p>
         </div>
       </div>
     </div>

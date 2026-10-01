@@ -1,36 +1,11 @@
 const express = require("express");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
-const Order = require("../models/Order");
-const Product = require("../models/Product");
+const supabase = require("../config/supabase");
+const { checkAndReduceStock, normalizeOrder } = require("./orderRoutes");
 const sendAdminOrderEmail = require("../utils/sendAdminOrderEmail");
 
 const router = express.Router();
-
-
-const checkAndReduceStock = async (items) => {
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new Error("Order items are required");
-  }
-
-  for (const item of items) {
-    const product = await Product.findById(item.productId);
-
-    if (!product) {
-      throw new Error(`${item.name || "Item"} not found`);
-    }
-
-    if (product.stock < item.quantity) {
-      throw new Error(`${product.name} has only ${product.stock} items left`);
-    }
-  }
-
-  for (const item of items) {
-    await Product.findByIdAndUpdate(item.productId, {
-      $inc: { stock: -Number(item.quantity) },
-    });
-  }
-};
 
 // Create Razorpay order
 router.post("/create-order", async (req, res) => {
@@ -127,16 +102,35 @@ router.post("/verify-and-create-order", async (req, res) => {
     await checkAndReduceStock(orderData.items);
 
     const orderId = "ORD" + Date.now();
+    const customerEmail = String(orderData.customer.email || "").toLowerCase().trim();
 
-    const order = await Order.create({
+    const normalizedItems = (orderData.items || []).map((item) => ({
+      productId: String(item.productId || ""),
+      name: String(item.name || ""),
+      image: String(item.image || ""),
+      selectedSize: String(item.selectedSize || ""),
+      quantity: Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+    }));
+
+    const orderPayload = {
       orderId,
-      customer: orderData.customer,
-      items: orderData.items,
-      totalAmount: orderData.totalAmount,
-      deliveryCharge: orderData.deliveryCharge,
-      discountAmount: orderData.discountAmount || 0,
-      couponCode: orderData.couponCode || "",
-      finalAmount: orderData.finalAmount,
+      customer: {
+        name: String(orderData.customer.name).trim(),
+        mobile: String(orderData.customer.mobile).trim(),
+        email: customerEmail,
+        address: String(orderData.customer.address).trim(),
+        city: String(orderData.customer.city).trim(),
+        state: String(orderData.customer.state).trim(),
+        pincode: String(orderData.customer.pincode).trim(),
+      },
+      customer_email: customerEmail,
+      items: normalizedItems,
+      totalAmount: Number(orderData.totalAmount) || 0,
+      deliveryCharge: Number(orderData.deliveryCharge) || 0,
+      discountAmount: Number(orderData.discountAmount) || 0,
+      couponCode: String(orderData.couponCode || "").trim(),
+      finalAmount: Number(orderData.finalAmount) || 0,
       paymentMethod: "ONLINE",
       paymentStatus: "Paid",
       razorpayOrderId: razorpay_order_id,
@@ -144,17 +138,29 @@ router.post("/verify-and-create-order", async (req, res) => {
       razorpaySignature: razorpay_signature,
       orderStatus: "Order Placed",
       stockRestored: false,
-    });
+    };
+
+    const { data: createdOrder, error } = await supabase
+      .from("orders")
+      .insert(orderPayload)
+      .select()
+      .single();
+
+    if (error || !createdOrder) {
+      throw new Error(error?.message || "Failed to persist online order in Supabase");
+    }
+
+    const orderResponse = normalizeOrder(createdOrder);
 
     // Send email notification to admin after online payment order is placed
-    sendAdminOrderEmail(order).catch((error) => {
+    sendAdminOrderEmail(orderResponse).catch((error) => {
       console.log("Admin order email failed:", error.message);
     });
 
     res.status(201).json({
       success: true,
       message: "Payment verified and order placed successfully",
-      order,
+      order: orderResponse,
     });
   } catch (error) {
     console.error("Payment verify error:", error);

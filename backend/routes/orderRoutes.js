@@ -1,41 +1,130 @@
 const express = require("express");
-const Order = require("../models/Order");
-const Product = require("../models/Product");
+const supabase = require("../config/supabase");
 const { protect, protectAdmin } = require("../middleware/authMiddleware");
 const sendAdminOrderEmail = require("../utils/sendAdminOrderEmail");
 
 const router = express.Router();
 
+function normalizeOrder(order) {
+  if (!order) return null;
+  const rawId = order.id !== undefined && order.id !== null ? order.id : order._id;
+  return {
+    _id: String(rawId),
+    id: rawId,
+    orderId: order.orderId || order.order_id || "",
+    customer: order.customer || {},
+    items: Array.isArray(order.items) ? order.items : [],
+    totalAmount: Number(order.totalAmount || order.total_amount) || 0,
+    deliveryCharge: Number(order.deliveryCharge || order.delivery_charge) || 0,
+    discountAmount: Number(order.discountAmount || order.discount_amount) || 0,
+    couponCode: order.couponCode || order.coupon_code || "",
+    finalAmount: Number(order.finalAmount || order.final_amount) || 0,
+    paymentMethod: order.paymentMethod || order.payment_method || "COD",
+    paymentStatus: order.paymentStatus || order.payment_status || "Pending",
+    razorpayOrderId: order.razorpayOrderId || order.razorpay_order_id || "",
+    razorpayPaymentId: order.razorpayPaymentId || order.razorpay_payment_id || "",
+    razorpaySignature: order.razorpaySignature || order.razorpay_signature || "",
+    orderStatus: order.orderStatus || order.order_status || "Order Placed",
+    trackingId: order.trackingId || order.tracking_id || "",
+    stockRestored: Boolean(order.stockRestored || order.stock_restored),
+    createdAt: order.created_at || order.createdAt || null,
+    updatedAt: order.updated_at || order.updatedAt || null,
+  };
+}
+
 const checkAndReduceStock = async (items) => {
-  for (const item of items) {
-    const product = await Product.findById(item.productId);
-
-    if (!product) {
-      throw new Error(`${item.name} not found`);
-    }
-
-    if (product.stock < item.quantity) {
-      throw new Error(`${product.name} has only ${product.stock} items left`);
-    }
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Order items are required");
   }
 
+  const productSnapshots = [];
+
   for (const item of items) {
-    await Product.findByIdAndUpdate(item.productId, {
-      $inc: { stock: -item.quantity },
+    const isNumeric = /^\d+$/.test(String(item.productId).trim());
+
+    if (!isNumeric) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, stock")
+      .eq("id", Number(item.productId))
+      .maybeSingle();
+
+    if (error || !data) {
+      throw new Error(`${item.name || "Item"} not found in store catalog`);
+    }
+
+    const currentStock = Number(data.stock) || 0;
+    const requestedQty = Number(item.quantity) || 1;
+
+    if (currentStock < requestedQty) {
+      throw new Error(`${data.name} has only ${currentStock} item(s) left in stock`);
+    }
+
+    productSnapshots.push({
+      id: data.id,
+      newStock: Math.max(0, currentStock - requestedQty),
     });
+  }
+
+  for (const p of productSnapshots) {
+    await supabase
+      .from("products")
+      .update({ stock: p.newStock })
+      .eq("id", p.id);
   }
 };
 
 const restoreStock = async (items) => {
   if (!Array.isArray(items)) return;
+
   for (const item of items) {
-    if (item && item.productId) {
-      await Product.findByIdAndUpdate(item.productId, {
-        $inc: { stock: Number(item.quantity) || 0 },
-      });
+    if (!item || !item.productId) continue;
+    const isNumeric = /^\d+$/.test(String(item.productId).trim());
+    const qty = Number(item.quantity) || 0;
+    if (!isNumeric || qty <= 0) continue;
+
+    const { data } = await supabase
+      .from("products")
+      .select("stock")
+      .eq("id", Number(item.productId))
+      .maybeSingle();
+
+    if (data) {
+      const currentStock = Number(data.stock) || 0;
+      await supabase
+        .from("products")
+        .update({ stock: currentStock + qty })
+        .eq("id", Number(item.productId));
     }
   }
 };
+
+async function findOrderByIdOrLegacy(identifier) {
+  if (!identifier) return null;
+  const idStr = String(identifier).trim();
+  const isNumeric = /^\d+$/.test(idStr);
+
+  try {
+    let query = supabase.from("orders").select("*");
+    if (isNumeric) {
+      query = query.eq("id", Number(idStr));
+    } else {
+      query = query.eq("legacy_mongo_id", idStr);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (!error && data) {
+      return data;
+    }
+  } catch (sbErr) {
+    console.error("Supabase find order error:", sbErr.message);
+  }
+
+  return null;
+}
 
 // Public: place new COD order
 router.post("/", async (req, res) => {
@@ -58,42 +147,80 @@ router.post("/", async (req, res) => {
       });
     }
 
-    if (!customer.name || !customer.mobile || !customer.address ||
-        !customer.city || !customer.state || !customer.pincode) {
+    if (
+      !customer.name ||
+      !customer.mobile ||
+      !customer.address ||
+      !customer.city ||
+      !customer.state ||
+      !customer.pincode
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All customer fields (name, mobile, address, city, state, pincode) are required",
+        message:
+          "All customer fields (name, mobile, address, city, state, pincode) are required",
       });
     }
 
     await checkAndReduceStock(items);
 
     const orderId = "ORD" + Date.now();
+    const customerEmail = String(customer.email || "").toLowerCase().trim();
 
-    const order = await Order.create({
+    const normalizedItems = (items || []).map((item) => ({
+      productId: String(item.productId || ""),
+      name: String(item.name || ""),
+      image: String(item.image || ""),
+      selectedSize: String(item.selectedSize || ""),
+      quantity: Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+    }));
+
+    const orderPayload = {
       orderId,
-      customer,
-      items,
-      totalAmount,
-      deliveryCharge,
-      discountAmount: discountAmount || 0,
-      couponCode: couponCode || "",
-      finalAmount,
-      paymentMethod: paymentMethod || "COD",
+      customer: {
+        name: String(customer.name).trim(),
+        mobile: String(customer.mobile).trim(),
+        email: customerEmail,
+        address: String(customer.address).trim(),
+        city: String(customer.city).trim(),
+        state: String(customer.state).trim(),
+        pincode: String(customer.pincode).trim(),
+      },
+      customer_email: customerEmail,
+      items: normalizedItems,
+      totalAmount: Number(totalAmount) || 0,
+      deliveryCharge: Number(deliveryCharge) || 0,
+      discountAmount: Number(discountAmount) || 0,
+      couponCode: String(couponCode || "").trim(),
+      finalAmount: Number(finalAmount) || 0,
+      paymentMethod: paymentMethod === "ONLINE" ? "ONLINE" : "COD",
       paymentStatus: "Pending",
       orderStatus: "Order Placed",
       stockRestored: false,
-    });
+    };
 
-    // Send email notification to admin after COD order is placed
-    sendAdminOrderEmail(order).catch((error) => {
-      console.log("Admin order email failed:", error.message);
+    const { data: createdOrder, error } = await supabase
+      .from("orders")
+      .insert(orderPayload)
+      .select()
+      .single();
+
+    if (error || !createdOrder) {
+      throw new Error(error?.message || "Failed to persist order in Supabase");
+    }
+
+    const orderResponse = normalizeOrder(createdOrder);
+
+    // Send email notification to admin asynchronously
+    sendAdminOrderEmail(orderResponse).catch((err) => {
+      console.log("Admin order email failed:", err.message);
     });
 
     res.status(201).json({
       success: true,
       message: "Order placed successfully",
-      order,
+      order: orderResponse,
     });
   } catch (error) {
     res.status(400).json({
@@ -106,9 +233,23 @@ router.post("/", async (req, res) => {
 // Customer: get my orders
 router.get("/my-orders", protect, async (req, res) => {
   try {
-    const orders = await Order.find({
-      "customer.email": req.user.email,
-    }).sort({ createdAt: -1 });
+    const userEmail = String(req.user.email || "").toLowerCase().trim();
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("customer_email", userEmail)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch my orders",
+        error: error.message,
+      });
+    }
+
+    const orders = (data || []).map(normalizeOrder);
 
     res.json({
       success: true,
@@ -126,14 +267,22 @@ router.get("/my-orders", protect, async (req, res) => {
 // Public: track order
 router.get("/track/:orderId", async (req, res) => {
   try {
-    const order = await Order.findOne({ orderId: req.params.orderId });
+    const requestedOrderId = String(req.params.orderId || "").trim();
 
-    if (!order) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("orderId", requestedOrderId)
+      .maybeSingle();
+
+    if (error || !data) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
       });
     }
+
+    const order = normalizeOrder(data);
 
     res.json({
       success: true,
@@ -157,46 +306,73 @@ router.get("/track/:orderId", async (req, res) => {
 // Customer: cancel order
 router.put("/:id/cancel", protect, async (req, res) => {
   try {
-    const order = await Order.findOne({
-      _id: req.params.id,
-      "customer.email": req.user.email,
-    });
+    const userEmail = String(req.user.email || "").toLowerCase().trim();
+    const orderRecord = await findOrderByIdOrLegacy(req.params.id);
 
-    if (!order) {
+    if (!orderRecord) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
       });
     }
 
+    const orderCustEmail = String(
+      orderRecord.customer_email || orderRecord.customer?.email || ""
+    ).toLowerCase().trim();
+
+    if (orderCustEmail !== userEmail) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to cancel this order",
+      });
+    }
+
+    const currentStatus = orderRecord.orderStatus || orderRecord.order_status;
     const allowedCancelStatuses = ["Order Placed", "Confirmed", "Packed"];
 
-    if (!allowedCancelStatuses.includes(order.orderStatus)) {
+    if (!allowedCancelStatuses.includes(currentStatus)) {
       return res.status(400).json({
         success: false,
         message: "Order cannot be cancelled after shipping",
       });
     }
 
-    if (!order.stockRestored) {
-      await restoreStock(order.items);
-      order.stockRestored = true;
+    const rawItems = Array.isArray(orderRecord.items) ? orderRecord.items : [];
+    let stockRestored = Boolean(orderRecord.stockRestored || orderRecord.stock_restored);
+
+    if (!stockRestored) {
+      await restoreStock(rawItems);
+      stockRestored = true;
     }
 
-    order.orderStatus = "Cancelled";
+    const currentPayStatus = orderRecord.paymentStatus || orderRecord.payment_status;
+    const newPayStatus = currentPayStatus === "Paid" ? "Refund Pending" : "Cancelled";
 
-    if (order.paymentStatus === "Paid") {
-      order.paymentStatus = "Refund Pending";
-    } else {
-      order.paymentStatus = "Cancelled";
+    const updates = {
+      orderStatus: "Cancelled",
+      paymentStatus: newPayStatus,
+      stockRestored: true,
+    };
+
+    const { data: updatedOrder, error } = await supabase
+      .from("orders")
+      .update(updates)
+      .eq("id", orderRecord.id)
+      .select()
+      .single();
+
+    if (error || !updatedOrder) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update order in Supabase",
+        error: error?.message,
+      });
     }
-
-    await order.save();
 
     res.json({
       success: true,
       message: "Order cancelled successfully",
-      order,
+      order: normalizeOrder(updatedOrder),
     });
   } catch (error) {
     res.status(500).json({
@@ -210,7 +386,20 @@ router.put("/:id/cancel", protect, async (req, res) => {
 // Admin: get all orders
 router.get("/", protectAdmin, async (req, res) => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch orders",
+        error: error.message,
+      });
+    }
+
+    const orders = (data || []).map(normalizeOrder);
 
     res.json({
       success: true,
@@ -228,40 +417,51 @@ router.get("/", protectAdmin, async (req, res) => {
 router.put("/:id/status", protectAdmin, async (req, res) => {
   try {
     const { orderStatus, trackingId, paymentStatus } = req.body;
+    const orderRecord = await findOrderByIdOrLegacy(req.params.id);
 
-    const order = await Order.findById(req.params.id);
-
-    if (!order) {
+    if (!orderRecord) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
       });
     }
 
+    const rawItems = Array.isArray(orderRecord.items) ? orderRecord.items : [];
+    let stockRestored = Boolean(orderRecord.stockRestored || orderRecord.stock_restored);
+
     if (
       (orderStatus === "Cancelled" || orderStatus === "Returned") &&
-      !order.stockRestored
+      !stockRestored
     ) {
-      await restoreStock(order.items);
-      order.stockRestored = true;
+      await restoreStock(rawItems);
+      stockRestored = true;
     }
 
-    if (orderStatus !== undefined) {
-      order.orderStatus = orderStatus;
-    }
-    if (trackingId !== undefined) {
-      order.trackingId = trackingId;
-    }
-    if (paymentStatus !== undefined) {
-      order.paymentStatus = paymentStatus;
-    }
+    const updates = {};
+    if (orderStatus !== undefined) updates.orderStatus = orderStatus;
+    if (trackingId !== undefined) updates.trackingId = trackingId;
+    if (paymentStatus !== undefined) updates.paymentStatus = paymentStatus;
+    if (stockRestored) updates.stockRestored = true;
 
-    await order.save();
+    const { data: updatedOrder, error } = await supabase
+      .from("orders")
+      .update(updates)
+      .eq("id", orderRecord.id)
+      .select()
+      .single();
+
+    if (error || !updatedOrder) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update order in Supabase",
+        error: error?.message,
+      });
+    }
 
     res.json({
       success: true,
       message: "Order status updated",
-      order,
+      order: normalizeOrder(updatedOrder),
     });
   } catch (error) {
     res.status(500).json({
@@ -273,3 +473,5 @@ router.put("/:id/status", protectAdmin, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.checkAndReduceStock = checkAndReduceStock;
+module.exports.normalizeOrder = normalizeOrder;

@@ -45,3 +45,7 @@ Thumbs.db
 # Uploaded media files
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+# Archives / Backups
+*.rar
+*.zip

@@ -1,6 +1,15 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+
 import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
+
+import { supabase } from "./lib/supabaseClient";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -19,6 +28,7 @@ import MyOrders from "./pages/MyOrders";
 import Wishlist from "./pages/Wishlist";
 import RecentlyViewed from "./pages/RecentlyViewed";
 import Profile from "./pages/Profile";
+import ForgotPassword from "./pages/ForgotPassword";
 
 import AdminLogin from "./admin/AdminLogin";
 import AdminDashboard from "./admin/AdminDashboard";
@@ -33,35 +43,94 @@ import AdminShippingLabel from "./admin/AdminShippingLabel";
 import AdminBanner from "./admin/AdminBanner";
 import AdminProtected from "./admin/AdminProtected";
 import AdminSettings from "./admin/AdminSettings";
-import ForgotPassword from "./pages/ForgotPassword";
+
 import "./App.css";
 
 function AppLayout() {
   const location = useLocation();
+
   const isAdminPage = location.pathname.startsWith("/admin");
 
   return (
     <>
+      {/* Customer Navbar */}
       {!isAdminPage && <Navbar />}
 
       <Routes>
-        {/* Customer Routes */}
+        {/* ================= CUSTOMER ROUTES ================= */}
+
         <Route path="/" element={<Home />} />
+
         <Route path="/shop" element={<Shop />} />
-        <Route path="/product/:id" element={<ProductDetails />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/track-order" element={<TrackOrder />} />
-        <Route path="/order-success" element={<OrderSuccess />} />
-        <Route path="/login" element={<CustomerLogin />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/my-orders" element={<MyOrders />} />
-        <Route path="/wishlist" element={<Wishlist />} />
-        <Route path="/recently-viewed" element={<RecentlyViewed />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
+
+        <Route
+          path="/product/:id"
+          element={<ProductDetails />}
+        />
+
+        <Route
+          path="/cart"
+          element={<Cart />}
+        />
+
+        <Route
+          path="/checkout"
+          element={<Checkout />}
+        />
+
+        <Route
+          path="/track-order"
+          element={<TrackOrder />}
+        />
+
+        <Route
+          path="/order-success"
+          element={<OrderSuccess />}
+        />
+
+        <Route
+          path="/login"
+          element={<CustomerLogin />}
+        />
+
+        <Route
+          path="/register"
+          element={<Register />}
+        />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
+
+        <Route
+          path="/my-orders"
+          element={<MyOrders />}
+        />
+
+        <Route
+          path="/wishlist"
+          element={<Wishlist />}
+        />
+
+        <Route
+          path="/recently-viewed"
+          element={<RecentlyViewed />}
+        />
+
+        <Route
+          path="/profile"
+          element={<Profile />}
+        />
+
+        {/* ================= ADMIN LOGIN ================= */}
+
+        <Route
+          path="/admin/login"
+          element={<AdminLogin />}
+        />
+
+        {/* ================= ADMIN PROTECTED ROUTES ================= */}
 
         <Route
           path="/admin/dashboard"
@@ -86,14 +155,6 @@ function AppLayout() {
           element={
             <AdminProtected>
               <AddProduct />
-            </AdminProtected>
-          }
-        />
-        <Route
-          path="/admin/settings"
-          element={
-            <AdminProtected>
-              <AdminSettings />
             </AdminProtected>
           }
         />
@@ -160,15 +221,65 @@ function AppLayout() {
             </AdminProtected>
           }
         />
+
+        <Route
+          path="/admin/settings"
+          element={
+            <AdminProtected>
+              <AdminSettings />
+            </AdminProtected>
+          }
+        />
       </Routes>
 
+      {/* Customer WhatsApp Button */}
       {!isAdminPage && <WhatsAppButton />}
+
+      {/* Customer Footer */}
       {!isAdminPage && <Footer />}
     </>
   );
 }
 
 function App() {
+  /*
+   * TEMPORARY SUPABASE CONNECTION TEST
+   *
+   * After we confirm Supabase works,
+   * we will remove this useEffect.
+   */
+  useEffect(() => {
+    const testSupabaseConnection = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("connection_test")
+          .select("*")
+          .limit(1);
+
+        if (error) {
+          console.error(
+            "❌ Supabase connection failed:",
+            error
+          );
+
+          return;
+        }
+
+        console.log(
+          "✅ Supabase connected successfully:",
+          data
+        );
+      } catch (error) {
+        console.error(
+          "❌ Unexpected Supabase error:",
+          error
+        );
+      }
+    };
+
+    testSupabaseConnection();
+  }, []);
+
   return (
     <CartProvider>
       <WishlistProvider>
