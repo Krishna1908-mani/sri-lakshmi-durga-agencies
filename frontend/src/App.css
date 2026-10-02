@@ -141,6 +141,21 @@
   flex-shrink: 0;
 }
 
+.logo-brand-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+  transition: transform var(--transition-spring), box-shadow var(--transition-fast);
+}
+
+.logo:hover .logo-brand-img {
+  transform: scale(1.08) rotate(3deg);
+  box-shadow: 0 0 0 2px #d97706, 0 4px 14px rgba(217, 119, 6, 0.35);
+}
+
 .logo-icon-box {
   display: flex;
   align-items: center;
@@ -434,6 +449,16 @@
   color: var(--primary-700);
 }
 
+.drawer-logo-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #d97706;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
 .drawer-sparkle {
   color: var(--accent-gold);
 }
@@ -583,6 +608,17 @@
   font-size: 1.2rem;
   font-weight: 800;
   margin-bottom: 14px;
+}
+
+.footer-logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(251, 191, 36, 0.7);
+  background: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .footer-logo-box {
@@ -3807,13 +3843,15 @@
 
 .invoice-container-card,
 .printable-invoice-sheet {
-  max-width: 820px;
+  width: 100%;
+  max-width: 840px;
   margin: 0 auto;
   background: #ffffff;
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-2xl);
-  padding: clamp(20px, 3.5vw, 40px);
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-lg);
+  padding: clamp(20px, 3.5vw, 36px);
   box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
 }
 
 .invoice-brand-header {
@@ -3830,8 +3868,25 @@
 .invoice-brand-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   color: var(--neutral-950);
+}
+
+.invoice-brand-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+}
+
+.invoice-brand-text h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--neutral-950);
+  margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .sparkle-accent {
@@ -4450,6 +4505,16 @@
   gap: 8px;
   text-decoration: none;
   color: white;
+}
+
+.admin-logo-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(251, 191, 36, 0.7);
+  background: #ffffff;
+  flex-shrink: 0;
 }
 
 .admin-logo-icon {
@@ -5518,15 +5583,33 @@
   margin-bottom: 14px;
 }
 
+.sender-brand-with-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shipping-label-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #000000;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
 .sender-brand h2 {
   font-size: 1.1rem;
   font-weight: 900;
   color: #000000;
+  margin: 0 0 2px;
 }
 
 .sender-brand p {
   font-size: 0.72rem;
   color: #333333;
+  margin: 1px 0;
 }
 
 .label-routing-box {
@@ -5675,36 +5758,79 @@
    17. PRINT MEDIA OVERRIDES
    -------------------------------------------------------------------------- */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  #root,
+  .app,
+  .page,
+  .order-success-page,
+  .admin-page-layout,
+  .admin-main-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
   .no-print,
   .navbar,
   .footer,
   .whatsapp-float-btn,
   .admin-nav-bar,
   .top-bar-actions,
-  .success-quick-ctas {
+  .success-quick-ctas,
+  .order-success-hero {
     display: none !important;
-  }
-
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-
-  .admin-page-layout,
-  .page,
-  .admin-main-content {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: 100% !important;
   }
 
   .printable-invoice-sheet,
   .invoice-container-card,
   .parcel-shipping-label {
-    border: 1px solid #000000 !important;
+    border: 1.5px solid #1e293b !important;
+    border-radius: 8px !important;
     box-shadow: none !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
+    padding: 24px 28px !important;
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid;
+  }
+
+  .invoice-customer-strip {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .order-invoice-table th,
+  .order-invoice-table td {
+    border-color: #cbd5e1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .invoice-brand-logo,
+  .shipping-label-logo {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    display: inline-block !important;
+    visibility: visible !important;
   }
 }

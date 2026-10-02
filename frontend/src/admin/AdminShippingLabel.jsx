@@ -102,9 +102,14 @@ function AdminShippingLabel() {
             {/* Header: Sender */}
             <div className="label-sender-header">
               <div className="sender-brand">
-                <h2>Sri Lakshmi Durga Agencies</h2>
-                <p>Wholesale & Retail Ladies Clothing & Essentials</p>
-                <p>Contact: +91 9949677382 | Andhra Pradesh, India</p>
+                <div className="sender-brand-with-logo">
+                  <img src="/logo.png" alt="Sri Lakshmi Durga Agencies Logo" className="shipping-label-logo" />
+                  <div>
+                    <h2>Sri Lakshmi Durga Agencies</h2>
+                    <p>Wholesale & Retail Ladies Clothing & Essentials</p>
+                    <p>Contact: +91 9949677382 | Andhra Pradesh, India</p>
+                  </div>
+                </div>
               </div>
 
               <div className="label-routing-box">

@@ -109,13 +109,15 @@ function AdminInvoice() {
           <div className="invoice-brand-header">
             <div className="invoice-company-info">
               <div className="invoice-brand-title">
-                <Sparkles size={20} className="sparkle-accent" />
-                <h2>Sri Lakshmi Durga Agencies</h2>
-              </div>
-              <p className="company-tagline">Wholesale & Retail Ladies Clothing & Daily Essentials</p>
-              <div className="company-contact-row">
-                <span><Phone size={13} /> +91 9949677382</span>
-                <span><Mail size={13} /> support@srilakshmidurga.com</span>
+                <img src="/logo.png" alt="Sri Lakshmi Durga Agencies Logo" className="invoice-brand-logo" />
+                <div className="invoice-brand-text">
+                  <h2>Sri Lakshmi Durga Agencies</h2>
+                  <p className="company-tagline">Wholesale & Retail Ladies Clothing & Daily Essentials</p>
+                  <div className="company-contact-row">
+                    <span><Phone size={13} /> +91 9949677382</span>
+                    <span><Mail size={13} /> support@srilakshmidurga.com</span>
+                  </div>
+                </div>
               </div>
             </div>
 

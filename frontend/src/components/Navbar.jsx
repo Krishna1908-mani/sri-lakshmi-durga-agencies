@@ -57,9 +57,7 @@ function Navbar() {
         <div className="navbar-container">
           {/* Brand Logo */}
           <Link to="/" className="logo" aria-label="Sri Lakshmi Durga Agencies Home">
-            <div className="logo-icon-box">
-              <Sparkles size={20} className="logo-icon-svg" />
-            </div>
+            <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="logo-brand-img" />
             <div className="logo-text-block">
               <span className="logo-text">Sri Lakshmi Durga</span>
               <span className="logo-badge">Agencies</span>
@@ -189,7 +187,7 @@ function Navbar() {
       <div className={`mobile-drawer ${mobileMenuOpen ? "open" : ""}`} aria-label="Mobile Navigation">
         <div className="mobile-drawer-header">
           <div className="drawer-brand">
-            <Sparkles size={18} className="drawer-sparkle" />
+            <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="drawer-logo-img" />
             <span className="logo-text">Sri Lakshmi Durga</span>
           </div>
           <button

@@ -40,9 +40,7 @@ function AdminNavbar() {
       <div className="admin-nav-container">
         <div className="admin-nav-brand-group">
           <Link to="/admin/dashboard" className="admin-logo">
-            <div className="admin-logo-icon">
-              <Sparkles size={16} />
-            </div>
+            <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="admin-logo-img" />
             <div className="admin-logo-text">
               <span className="logo-main">Sri Lakshmi Durga</span>
               <span className="admin-pill-tag">PORTAL</span>

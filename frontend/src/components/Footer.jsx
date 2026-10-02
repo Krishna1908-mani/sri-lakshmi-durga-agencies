@@ -37,9 +37,7 @@ function Footer() {
       <div className="footer-container">
         <div className="footer-col brand-col">
           <Link to="/" className="footer-logo">
-            <div className="footer-logo-box">
-              <Sparkles size={18} />
-            </div>
+            <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="footer-logo-img" />
             <span>Sri Lakshmi Durga Agencies</span>
           </Link>
           <p className="footer-tagline">
