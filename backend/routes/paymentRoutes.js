@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const supabase = require("../config/supabase");
 const { checkAndReduceStock, normalizeOrder } = require("./orderRoutes");
 const sendAdminOrderEmail = require("../utils/sendAdminOrderEmail");
+const { sendOrderConfirmationEmail } = require("../services/emailService");
 
 const router = express.Router();
 
@@ -152,9 +153,14 @@ router.post("/verify-and-create-order", async (req, res) => {
 
     const orderResponse = normalizeOrder(createdOrder);
 
+    // Send email notification to customer asynchronously
+    sendOrderConfirmationEmail(orderResponse).catch((emailErr) => {
+      console.warn("Customer online order confirmation email failed safely:", emailErr.message);
+    });
+
     // Send email notification to admin after online payment order is placed
     sendAdminOrderEmail(orderResponse).catch((error) => {
-      console.log("Admin order email failed:", error.message);
+      console.warn("Admin order email failed safely:", error.message);
     });
 
     res.status(201).json({

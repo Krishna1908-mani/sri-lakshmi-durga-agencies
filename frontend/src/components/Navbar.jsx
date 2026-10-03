@@ -5,18 +5,18 @@ import {
   ShoppingBag, 
   Heart, 
   User, 
+  UserPlus,
   LogOut, 
   Menu, 
   X, 
   Search, 
   Package, 
   Compass, 
-  Clock, 
-  Sliders,
-  ShieldCheck
+  Clock 
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
+import ThemeToggle from "./ThemeToggle";
 
 function Navbar() {
   const { cartItems } = useCart();
@@ -29,17 +29,40 @@ function Navbar() {
   const userToken = localStorage.getItem("userToken");
   const userName = localStorage.getItem("userName");
 
-  const adminToken = localStorage.getItem("adminToken");
-
   // Close mobile drawer on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // Handle escape key to close menu
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
+
+  // Prevent background scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
   const logoutUser = () => {
     localStorage.removeItem("userToken");
     localStorage.removeItem("userName");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("userId");
+    setMobileMenuOpen(false);
     navigate("/");
   };
 
@@ -66,38 +89,38 @@ function Navbar() {
             <Link to="/shop" className={location.pathname === "/shop" ? "active-link" : ""}>
               Shop
             </Link>
-            <Link
-              to="/wishlist"
-              className={`wishlist-nav-link ${location.pathname === "/wishlist" ? "active-link" : ""}`}
-              aria-label={`Wishlist with ${wishlistItems.length} items`}
-            >
-              <Heart size={16} className={`nav-icon-heart ${wishlistItems.length > 0 ? "has-items" : ""}`} />
-              <span>Wishlist</span>
-              {wishlistItems.length > 0 && <span className="nav-badge">{wishlistItems.length}</span>}
-            </Link>
-            <Link
-              to="/recently-viewed"
-              className={location.pathname === "/recently-viewed" ? "active-link" : ""}
-            >
-              <Clock size={15} />
-              <span>Recent</span>
-            </Link>
-            <Link
-              to="/track-order"
-              className={location.pathname === "/track-order" ? "active-link" : ""}
-            >
-              <Compass size={15} />
-              <span>Track Order</span>
-            </Link>
 
-            {userToken && (
+            {userToken ? (
               <>
+                <Link
+                  to="/wishlist"
+                  className={`wishlist-nav-link ${location.pathname === "/wishlist" ? "active-link" : ""}`}
+                  aria-label={`Wishlist with ${wishlistItems.length} items`}
+                >
+                  <Heart size={16} className={`nav-icon-heart ${wishlistItems.length > 0 ? "has-items" : ""}`} />
+                  <span>Wishlist</span>
+                  {wishlistItems.length > 0 && <span className="nav-badge">{wishlistItems.length}</span>}
+                </Link>
+                <Link
+                  to="/recently-viewed"
+                  className={location.pathname === "/recently-viewed" ? "active-link" : ""}
+                >
+                  <Clock size={15} />
+                  <span>Recent</span>
+                </Link>
                 <Link
                   to="/my-orders"
                   className={location.pathname === "/my-orders" ? "active-link" : ""}
                 >
                   <Package size={15} />
                   <span>Orders</span>
+                </Link>
+                <Link
+                  to="/track-order"
+                  className={location.pathname === "/track-order" ? "active-link" : ""}
+                >
+                  <Compass size={15} />
+                  <span>Track Order</span>
                 </Link>
                 <Link
                   to="/profile"
@@ -107,37 +130,49 @@ function Navbar() {
                   <span>Profile</span>
                 </Link>
               </>
-            )}
-
-            {adminToken && (
+            ) : (
               <Link
-                to="/admin/dashboard"
-                className="admin-portal-badge-pill"
-                title="Go to Admin Control Portal"
+                to="/track-order"
+                className={location.pathname === "/track-order" ? "active-link" : ""}
               >
-                <ShieldCheck size={14} />
-                <span>Admin Portal</span>
+                <Compass size={15} />
+                <span>Track Order</span>
               </Link>
             )}
           </nav>
 
           {/* Right Action Utilities */}
           <div className="nav-actions">
+            {/* Theme Toggle Button */}
+            <ThemeToggle className="desktop-theme-toggle" />
+
             {userToken ? (
               <div className="user-action-group">
                 <Link to="/profile" className="profile-pill" title="Customer Account">
                   <User size={15} />
                   <span>{userName ? userName.split(" ")[0] : "Account"}</span>
                 </Link>
-                <button className="btn-icon-logout" onClick={logoutUser} title="Customer Sign Out">
+                <button
+                  type="button"
+                  className="btn-icon-logout"
+                  onClick={logoutUser}
+                  title="Customer Sign Out"
+                  aria-label="Sign Out"
+                >
                   <LogOut size={16} />
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="login-btn" title="Customer Sign In">
-                <User size={15} />
-                <span>Sign In</span>
-              </Link>
+              <div className="auth-action-group">
+                <Link to="/login" className="login-btn" title="Customer Sign In">
+                  <User size={15} />
+                  <span>Sign In</span>
+                </Link>
+                <Link to="/register" className="register-nav-btn" title="Create New Account">
+                  <UserPlus size={15} />
+                  <span>Create Account</span>
+                </Link>
+              </div>
             )}
 
             {/* Shopping Cart Button */}
@@ -153,12 +188,13 @@ function Navbar() {
 
             {/* Mobile Hamburger Button */}
             <button
+              type="button"
               className={`hamburger-btn ${mobileMenuOpen ? "active" : ""}`}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle mobile menu"
+              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={mobileMenuOpen}
             >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
@@ -174,22 +210,31 @@ function Navbar() {
       )}
 
       {/* Mobile Drawer Menu */}
-      <div className={`mobile-drawer ${mobileMenuOpen ? "open" : ""}`} aria-label="Mobile Navigation">
+      <div
+        className={`mobile-drawer ${mobileMenuOpen ? "open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation Menu"
+      >
         <div className="mobile-drawer-header">
           <div className="drawer-brand">
             <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="drawer-logo-img" />
             <span className="logo-text">Sri Lakshmi Durga</span>
           </div>
-          <button
-            className="mobile-drawer-close"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
+          <div className="drawer-header-actions">
+            <ThemeToggle className="drawer-theme-toggle" />
+            <button
+              type="button"
+              className="mobile-drawer-close"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close navigation menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
-        <nav className="mobile-nav-links">
+        <nav className="mobile-nav-links" aria-label="Mobile Navigation Links">
           <Link to="/" onClick={() => setMobileMenuOpen(false)}>
             <Sparkles size={18} />
             <span>Home</span>
@@ -198,14 +243,6 @@ function Navbar() {
             <Search size={18} />
             <span>Shop Collection</span>
           </Link>
-          <Link to="/wishlist" onClick={() => setMobileMenuOpen(false)}>
-            <Heart size={18} />
-            <span>Wishlist ({wishlistItems.length})</span>
-          </Link>
-          <Link to="/recently-viewed" onClick={() => setMobileMenuOpen(false)}>
-            <Clock size={18} />
-            <span>Recently Viewed</span>
-          </Link>
           <Link to="/track-order" onClick={() => setMobileMenuOpen(false)}>
             <Compass size={18} />
             <span>Track Order</span>
@@ -213,6 +250,14 @@ function Navbar() {
 
           {userToken && (
             <>
+              <Link to="/wishlist" onClick={() => setMobileMenuOpen(false)}>
+                <Heart size={18} />
+                <span>Wishlist {wishlistItems.length > 0 ? `(${wishlistItems.length})` : ""}</span>
+              </Link>
+              <Link to="/recently-viewed" onClick={() => setMobileMenuOpen(false)}>
+                <Clock size={18} />
+                <span>Recently Viewed</span>
+              </Link>
               <Link to="/my-orders" onClick={() => setMobileMenuOpen(false)}>
                 <Package size={18} />
                 <span>My Orders</span>
@@ -223,41 +268,25 @@ function Navbar() {
               </Link>
             </>
           )}
-
-          {adminToken && (
-            <Link
-              to="/admin/dashboard"
-              className="admin-link-highlight"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Sliders size={18} />
-              <span>Admin Dashboard</span>
-            </Link>
-          )}
         </nav>
 
         <div className="mobile-drawer-footer">
           {userToken ? (
-            <button className="mobile-drawer-btn logout" onClick={logoutUser}>
+            <button type="button" className="mobile-drawer-btn logout" onClick={logoutUser}>
               <LogOut size={16} />
               <span>Sign Out ({userName ? userName.split(" ")[0] : "Customer"})</span>
             </button>
           ) : (
-            <Link to="/login" className="mobile-drawer-btn login" onClick={() => setMobileMenuOpen(false)}>
-              <User size={16} />
-              <span>Customer Sign In</span>
-            </Link>
-          )}
-
-          {adminToken && (
-            <Link
-              to="/admin/dashboard"
-              className="mobile-drawer-btn admin-portal-btn"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <ShieldCheck size={16} />
-              <span>Open Admin Portal</span>
-            </Link>
+            <div className="mobile-drawer-auth-buttons">
+              <Link to="/login" className="mobile-drawer-btn login" onClick={() => setMobileMenuOpen(false)}>
+                <User size={16} />
+                <span>Customer Sign In</span>
+              </Link>
+              <Link to="/register" className="mobile-drawer-btn register" onClick={() => setMobileMenuOpen(false)}>
+                <UserPlus size={16} />
+                <span>Create Account</span>
+              </Link>
+            </div>
           )}
         </div>
       </div>

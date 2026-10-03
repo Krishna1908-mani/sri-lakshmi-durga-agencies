@@ -70,7 +70,6 @@ function Footer() {
                 <span>WhatsApp Helpdesk</span>
               </a>
             </li>
-            <li><Link to="/admin/login" className="admin-footer-link">Admin Portal</Link></li>
           </ul>
         </div>
 

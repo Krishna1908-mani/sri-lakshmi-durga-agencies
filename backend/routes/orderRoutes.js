@@ -2,6 +2,10 @@ const express = require("express");
 const supabase = require("../config/supabase");
 const { protect, protectAdmin } = require("../middleware/authMiddleware");
 const sendAdminOrderEmail = require("../utils/sendAdminOrderEmail");
+const {
+  sendOrderConfirmationEmail,
+  sendOrderStatusUpdateEmail,
+} = require("../services/emailService");
 
 const router = express.Router();
 
@@ -212,9 +216,14 @@ router.post("/", async (req, res) => {
 
     const orderResponse = normalizeOrder(createdOrder);
 
+    // Send email notification to customer asynchronously
+    sendOrderConfirmationEmail(orderResponse).catch((err) => {
+      console.warn("Customer order confirmation email failed safely:", err.message);
+    });
+
     // Send email notification to admin asynchronously
     sendAdminOrderEmail(orderResponse).catch((err) => {
-      console.log("Admin order email failed:", err.message);
+      console.warn("Admin order email failed safely:", err.message);
     });
 
     res.status(201).json({
@@ -458,10 +467,22 @@ router.put("/:id/status", protectAdmin, async (req, res) => {
       });
     }
 
+    const normalizedUpdated = normalizeOrder(updatedOrder);
+
+    // Dispatch status update email to customer if status changed
+    if (orderStatus && orderStatus !== (orderRecord.orderStatus || orderRecord.order_status)) {
+      sendOrderStatusUpdateEmail({
+        order: normalizedUpdated,
+        newStatus: orderStatus,
+      }).catch((emailErr) => {
+        console.warn("Order status update customer email failed safely:", emailErr.message);
+      });
+    }
+
     res.json({
       success: true,
       message: "Order status updated",
-      order: normalizeOrder(updatedOrder),
+      order: normalizedUpdated,
     });
   } catch (error) {
     res.status(500).json({

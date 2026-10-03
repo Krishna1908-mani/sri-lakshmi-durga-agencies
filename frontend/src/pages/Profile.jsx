@@ -9,9 +9,12 @@ import {
   Package, 
   Heart, 
   Compass, 
-  LogOut,
-  ShieldCheck
+  LogOut, 
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
+import API from "../api/axios";
 
 function Profile() {
   const navigate = useNavigate();
@@ -28,9 +31,12 @@ function Profile() {
     city: "",
     state: "",
     pincode: "",
+    marketing_emails_enabled: true,
   });
 
   const [isSaved, setIsSaved] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
     if (!userToken) {
@@ -43,40 +49,96 @@ function Profile() {
       localStorage.getItem("customerProfile");
 
     if (savedProfile) {
-      const parsedProfile = JSON.parse(savedProfile);
-      setProfile(parsedProfile);
+      try {
+        const parsed = JSON.parse(savedProfile);
+        setProfile((prev) => ({
+          ...prev,
+          ...parsed,
+          name: parsed.name || userName,
+          email: parsed.email || userEmail,
+        }));
+      } catch (e) {
+        console.warn("Failed to parse saved profile:", e);
+      }
     }
-  }, [userToken, userEmail, navigate]);
+
+    // Fetch live customer session details
+    API.get("/auth/customer/me")
+      .then((res) => {
+        if (res.data?.user) {
+          setProfile((prev) => ({
+            ...prev,
+            name: res.data.user.name || prev.name,
+            email: res.data.user.email || prev.email,
+            marketing_emails_enabled: res.data.user.marketing_emails_enabled !== false,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [userToken, userEmail, userName, navigate]);
 
   const handleChange = (e) => {
-    setProfile({
-      ...profile,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value, type, checked } = e.target;
+    setProfile((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (errorMsg) setErrorMsg("");
+    if (successMsg) setSuccessMsg("");
     if (isSaved) setIsSaved(false);
   };
 
-  const saveProfile = (e) => {
+  const saveProfile = async (e) => {
     e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
 
-    localStorage.setItem("customerProfile", JSON.stringify(profile));
-    localStorage.setItem(
-      `customerProfile_${profile.email}`,
-      JSON.stringify(profile)
-    );
+    const trimmedName = (profile.name || "").trim();
+    if (!trimmedName || !/^[A-Za-z ]+$/.test(trimmedName)) {
+      setErrorMsg("Name can contain letters and spaces only.");
+      return;
+    }
 
-    localStorage.setItem("userName", profile.name);
-    localStorage.setItem("userEmail", profile.email);
+    const trimmedEmail = (profile.email || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setErrorMsg("Please enter a valid email address.");
+      return;
+    }
+
+    const updatedProfile = {
+      ...profile,
+      name: trimmedName,
+      email: trimmedEmail,
+    };
+
+    localStorage.setItem("customerProfile", JSON.stringify(updatedProfile));
+    localStorage.setItem(`customerProfile_${trimmedEmail}`, JSON.stringify(updatedProfile));
+    localStorage.setItem("userName", trimmedName);
+    localStorage.setItem("userEmail", trimmedEmail);
+
+    try {
+      await API.put("/auth/customer/profile", {
+        name: trimmedName,
+        marketing_emails_enabled: profile.marketing_emails_enabled,
+      });
+    } catch {
+      // Backend synchronization error handled gracefully
+    }
 
     setIsSaved(true);
-    alert("Profile saved successfully");
-    setTimeout(() => setIsSaved(false), 2500);
+    setSuccessMsg("Profile details saved successfully!");
+    setTimeout(() => {
+      setIsSaved(false);
+      setSuccessMsg("");
+    }, 3500);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("userToken");
     localStorage.removeItem("userName");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("userId");
     navigate("/");
   };
 
@@ -98,11 +160,30 @@ function Profile() {
           </div>
         </div>
 
-        <button type="button" onClick={handleLogout} className="profile-logout-btn">
+        <button type="button" onClick={handleLogout} className="profile-logout-btn" aria-label="Sign Out">
           <LogOut size={16} />
           <span>Sign Out</span>
         </button>
       </div>
+
+      {/* Feedback Messages */}
+      {errorMsg && (
+        <div className="auth-alert-box" role="alert" style={{ marginBottom: 20 }}>
+          <AlertCircle size={18} className="alert-icon" />
+          <div className="alert-content">
+            <span>{errorMsg}</span>
+          </div>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="auth-alert-box success" role="alert" style={{ marginBottom: 20 }}>
+          <CheckCircle2 size={18} className="alert-icon" />
+          <div className="alert-content">
+            <span>{successMsg}</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Navigation Cards */}
       <div className="profile-quick-nav-grid">
@@ -142,12 +223,12 @@ function Profile() {
         <div className="profile-card-title-row">
           <MapPin size={22} className="card-title-icon" />
           <div>
-            <h2>Default Shipping Address</h2>
+            <h2>Default Shipping Address & Preferences</h2>
             <p>Saved details automatically prefill during checkout</p>
           </div>
         </div>
 
-        <form className="profile-form" onSubmit={saveProfile}>
+        <form className="profile-form" onSubmit={saveProfile} noValidate>
           <div className="profile-form-grid">
             <div className="form-group">
               <label htmlFor="prof-name">Full Name *</label>
@@ -246,6 +327,20 @@ function Profile() {
                 className="form-input"
                 required
               />
+            </div>
+
+            {/* Email Preferences Checkbox */}
+            <div className="form-group span-2">
+              <label className="checkbox-label" htmlFor="prof-marketing">
+                <input
+                  id="prof-marketing"
+                  type="checkbox"
+                  name="marketing_emails_enabled"
+                  checked={profile.marketing_emails_enabled}
+                  onChange={handleChange}
+                />
+                <span>Receive offers and promotional emails from Sri Lakshmi Durga Agencies</span>
+              </label>
             </div>
           </div>
 

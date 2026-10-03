@@ -221,6 +221,19 @@ function Checkout() {
       return;
     }
 
+    const trimmedName = (form.name || "").trim();
+    if (!trimmedName || !/^[A-Za-z ]+$/.test(trimmedName)) {
+      alert("Name can contain letters and spaces only.");
+      return;
+    }
+
+    const trimmedEmail = (form.email || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       if (form.paymentMethod === "COD") {

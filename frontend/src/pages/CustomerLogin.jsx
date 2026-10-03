@@ -10,7 +10,7 @@ import {
   AlertCircle, 
   CheckCircle2,
   ArrowRight,
-  ShieldAlert
+  UserPlus
 } from "lucide-react";
 import API from "../api/axios";
 
@@ -27,7 +27,6 @@ function CustomerLogin() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [isAdminAccount, setIsAdminAccount] = useState(false);
 
   const handleChange = (e) => {
     setForm({
@@ -36,7 +35,6 @@ function CustomerLogin() {
     });
     if (errorMessage) {
       setErrorMessage("");
-      setIsAdminAccount(false);
     }
   };
 
@@ -44,13 +42,25 @@ function CustomerLogin() {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
-    setIsAdminAccount(false);
     setLoading(true);
 
-    const trimmedEmail = form.email.trim().toLowerCase();
+    const trimmedEmail = (form.email || "").trim().toLowerCase();
 
-    if (!trimmedEmail || !form.password) {
-      setErrorMessage("Please enter both email and password.");
+    if (!trimmedEmail) {
+      setErrorMessage("Please enter your email address.");
+      setLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMessage("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.password) {
+      setErrorMessage("Please enter your password.");
       setLoading(false);
       return;
     }
@@ -79,14 +89,9 @@ function CustomerLogin() {
       }, 500);
     } catch (error) {
       const respData = error.response?.data;
-      if (respData?.isAdminAccount) {
-        setIsAdminAccount(true);
-        setErrorMessage(respData.message || "This account is an Administrator. Please use the Admin Portal.");
-      } else {
-        setErrorMessage(
-          respData?.message || "Invalid email or password. Please try again."
-        );
-      }
+      setErrorMessage(
+        respData?.message || "Invalid email or password. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -113,18 +118,9 @@ function CustomerLogin() {
         {/* Feedback Messages */}
         {errorMessage && (
           <div className="auth-alert-box" role="alert">
-            {isAdminAccount ? (
-              <ShieldAlert size={18} className="alert-icon" />
-            ) : (
-              <AlertCircle size={18} className="alert-icon" />
-            )}
+            <AlertCircle size={18} className="alert-icon" />
             <div className="alert-content">
               <span>{errorMessage}</span>
-              {isAdminAccount && (
-                <Link to="/admin/login" className="auth-switch-link-btn">
-                  Go to Admin Portal &rarr;
-                </Link>
-              )}
             </div>
           </div>
         )}
@@ -202,21 +198,16 @@ function CustomerLogin() {
             )}
           </button>
 
+          {/* Prominent Create Account Section */}
           <div className="auth-footer-links">
-            <p className="register-prompt">
-              New to Sri Lakshmi Durga Agencies?{" "}
-              <Link to="/register">
-                Create Account <ArrowRight size={13} />
+            <div className="create-account-card">
+              <span className="create-account-prompt">Don't have an account?</span>
+              <Link to="/register" className="create-account-btn">
+                <UserPlus size={15} />
+                <span>Create Account</span>
+                <ArrowRight size={14} />
               </Link>
-            </p>
-          </div>
-
-          {/* Discreet Admin Portal Link */}
-          <div className="portal-switch-footer">
-            <span>Store Staff or Administrator?</span>
-            <Link to="/admin/login" className="portal-switch-link">
-              Admin Portal &rarr;
-            </Link>
+            </div>
           </div>
         </form>
       </div>

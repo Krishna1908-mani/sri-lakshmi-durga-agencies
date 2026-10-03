@@ -8,6 +8,7 @@ const {
   protectAdmin,
 } = require("../middleware/authMiddleware");
 const sendEmail = require("../utils/sendEmail");
+const { sendWelcomeEmail } = require("../services/emailService");
 
 const router = express.Router();
 
@@ -60,16 +61,48 @@ async function findUserByEmail(email) {
  */
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, confirmPassword, marketing_emails_enabled } = req.body;
 
-    if (!name || !email || !password) {
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    if (!trimmedName) {
       return res.status(400).json({
         success: false,
-        message: "Name, email, and password are required",
+        message: "Full name is required",
       });
     }
 
-    const trimmedEmail = email.toLowerCase().trim();
+    const nameRegex = /^[A-Za-z ]+$/;
+    if (!nameRegex.test(trimmedName)) {
+      return res.status(400).json({
+        success: false,
+        message: "Name can contain letters and spaces only.",
+      });
+    }
+
+    const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address.",
+      });
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!password || !passwordRegex.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.",
+      });
+    }
+
+    if (confirmPassword !== undefined && confirmPassword !== password) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match.",
+      });
+    }
+
     const existingUser = await findUserByEmail(trimmedEmail);
 
     if (existingUser) {
@@ -81,16 +114,31 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const { data, error } = await supabase
+    const insertPayload = {
+      name: trimmedName,
+      email: trimmedEmail,
+      password: hashedPassword,
+      role: "customer",
+      marketing_emails_enabled: marketing_emails_enabled !== false,
+    };
+
+    let result = await supabase
       .from("users")
-      .insert({
-        name: name.trim(),
-        email: trimmedEmail,
-        password: hashedPassword,
-        role: "customer",
-      })
-      .select("id, name, email, role")
+      .insert(insertPayload)
+      .select("id, name, email, role, marketing_emails_enabled")
       .single();
+
+    // Fallback if column not yet added to live table
+    if (result.error && result.error.message && result.error.message.includes("marketing_emails_enabled")) {
+      delete insertPayload.marketing_emails_enabled;
+      result = await supabase
+        .from("users")
+        .insert(insertPayload)
+        .select("id, name, email, role")
+        .single();
+    }
+
+    const { data, error } = result;
 
     if (error || !data) {
       return res.status(500).json({
@@ -103,6 +151,14 @@ router.post("/register", async (req, res) => {
     const token = tokenService.generateCustomerToken(data);
     tokenService.setCustomerCookie(res, token);
 
+    // Asynchronously dispatch welcome email (failure will not crash registration)
+    sendWelcomeEmail({
+      to: trimmedEmail,
+      customerName: trimmedName,
+    }).catch((emailErr) => {
+      console.warn("Welcome email dispatch failed safely:", emailErr.message);
+    });
+
     res.status(201).json({
       success: true,
       message: "Customer registration successful",
@@ -113,6 +169,7 @@ router.post("/register", async (req, res) => {
         name: data.name,
         email: data.email,
         role: data.role,
+        marketing_emails_enabled: data.marketing_emails_enabled !== false,
       },
     });
   } catch (error) {
@@ -140,6 +197,14 @@ router.post("/login", async (req, res) => {
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address.",
+      });
+    }
+
     const user = await findUserByEmail(trimmedEmail);
 
     if (!user) {
@@ -149,13 +214,11 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Explicitly reject admins trying to use customer portal login
+    // Explicitly reject admins trying to use customer portal login without leaking admin details
     if (user.role === "admin" && role !== "admin") {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
-        message: "This account has Administrative credentials. Access through the Customer Portal is blocked. Please access via the Admin Portal.",
-        code: "ADMIN_ACCOUNT_BLOCKED_ON_CUSTOMER_PORTAL",
-        isAdminAccount: true,
+        message: "Invalid email or password",
       });
     }
 
@@ -163,7 +226,7 @@ router.post("/login", async (req, res) => {
     if (role === "admin" && user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Access denied. This account does not have administrator privileges.",
+        message: "Access denied.",
       });
     }
 
@@ -232,18 +295,120 @@ router.post("/logout", (req, res) => {
  * Customer Current Session Profile
  * GET /api/v1/customer/auth/me
  */
-router.get("/customer/me", requireCustomerAuth, (req, res) => {
-  res.json({
-    success: true,
-    portal: "customer",
-    user: {
-      id: String(req.user.id),
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-    },
-  });
+router.get("/customer/me", requireCustomerAuth, async (req, res) => {
+  try {
+    const { data: dbUser } = await supabase
+      .from("users")
+      .select("id, name, email, role, marketing_emails_enabled")
+      .eq("id", req.user.id)
+      .maybeSingle();
+
+    res.json({
+      success: true,
+      portal: "customer",
+      user: {
+        id: String(req.user.id),
+        name: dbUser?.name || req.user.name,
+        email: dbUser?.email || req.user.email,
+        role: req.user.role,
+        marketing_emails_enabled: dbUser?.marketing_emails_enabled !== false,
+      },
+    });
+  } catch {
+    res.json({
+      success: true,
+      portal: "customer",
+      user: {
+        id: String(req.user.id),
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role,
+        marketing_emails_enabled: true,
+      },
+    });
+  }
 });
+
+/**
+ * Update Customer Profile
+ * PUT /api/auth/customer/profile or /api/auth/profile
+ */
+const handleUpdateCustomerProfile = async (req, res) => {
+  try {
+    const { name, marketing_emails_enabled } = req.body;
+    const updates = {};
+
+    if (name !== undefined) {
+      const trimmedName = typeof name === "string" ? name.trim() : "";
+      if (!trimmedName || !/^[A-Za-z ]+$/.test(trimmedName)) {
+        return res.status(400).json({
+          success: false,
+          message: "Name can contain letters and spaces only.",
+        });
+      }
+      updates.name = trimmedName;
+    }
+
+    if (marketing_emails_enabled !== undefined) {
+      updates.marketing_emails_enabled = Boolean(marketing_emails_enabled);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid profile fields provided for update.",
+      });
+    }
+
+    let result = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", req.user.id)
+      .select("id, name, email, role, marketing_emails_enabled")
+      .single();
+
+    if (result.error && result.error.message && result.error.message.includes("marketing_emails_enabled")) {
+      delete updates.marketing_emails_enabled;
+      if (Object.keys(updates).length > 0) {
+        result = await supabase
+          .from("users")
+          .update(updates)
+          .eq("id", req.user.id)
+          .select("id, name, email, role")
+          .single();
+      }
+    }
+
+    if (result.error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update profile",
+        error: result.error.message,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: String(result.data?.id || req.user.id),
+        name: result.data?.name || req.user.name,
+        email: result.data?.email || req.user.email,
+        role: req.user.role,
+        marketing_emails_enabled: result.data?.marketing_emails_enabled !== false,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+      error: error.message,
+    });
+  }
+};
+
+router.put("/customer/profile", requireCustomerAuth, handleUpdateCustomerProfile);
+router.put("/profile", requireCustomerAuth, handleUpdateCustomerProfile);
 
 // ============================================================================
 // ADMINISTRATOR AUTHENTICATION ENDPOINTS
@@ -446,6 +611,14 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address.",
+      });
+    }
+
     const user = await findUserByEmail(trimmedEmail);
 
     if (!user || user.role !== "customer") {
@@ -516,6 +689,14 @@ router.post("/reset-password", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Email, OTP, and new password are required",
+      });
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.",
       });
     }
 

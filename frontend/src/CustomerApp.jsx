@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./context/ThemeContext";
 import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
 
@@ -33,47 +34,49 @@ import "./App.css";
  */
 function CustomerApp() {
   return (
-    <CartProvider>
-      <WishlistProvider>
-        <BrowserRouter>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/product/:id" element={<ProductDetails />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/track-order" element={<TrackOrder />} />
-            <Route path="/order-success" element={<OrderSuccess />} />
-            <Route path="/login" element={<CustomerLogin />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route
-              path="/my-orders"
-              element={
-                <CustomerProtected>
-                  <MyOrders />
-                </CustomerProtected>
-              }
-            />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/recently-viewed" element={<RecentlyViewed />} />
-            <Route
-              path="/profile"
-              element={
-                <CustomerProtected>
-                  <Profile />
-                </CustomerProtected>
-              }
-            />
-            {/* Catch-all customer redirect */}
-            <Route path="*" element={<Home />} />
-          </Routes>
-          <WhatsAppButton />
-          <Footer />
-        </BrowserRouter>
-      </WishlistProvider>
-    </CartProvider>
+    <ThemeProvider>
+      <CartProvider>
+        <WishlistProvider>
+          <BrowserRouter>
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/track-order" element={<TrackOrder />} />
+              <Route path="/order-success" element={<OrderSuccess />} />
+              <Route path="/login" element={<CustomerLogin />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route
+                path="/my-orders"
+                element={
+                  <CustomerProtected>
+                    <MyOrders />
+                  </CustomerProtected>
+                }
+              />
+              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/recently-viewed" element={<RecentlyViewed />} />
+              <Route
+                path="/profile"
+                element={
+                  <CustomerProtected>
+                    <Profile />
+                  </CustomerProtected>
+                }
+              />
+              {/* Catch-all customer redirect */}
+              <Route path="*" element={<Home />} />
+            </Routes>
+            <WhatsAppButton />
+            <Footer />
+          </BrowserRouter>
+        </WishlistProvider>
+      </CartProvider>
+    </ThemeProvider>
   );
 }
 

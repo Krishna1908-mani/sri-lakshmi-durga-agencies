@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   KeyRound, 
@@ -6,7 +6,11 @@ import {
   Lock, 
   ArrowLeft, 
   CheckCircle2, 
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Check,
+  X
 } from "lucide-react";
 import API from "../api/axios";
 
@@ -17,6 +21,8 @@ function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -24,6 +30,25 @@ function ForgotPassword() {
     newPassword: "",
     confirmPassword: "",
   });
+
+  // Dynamic Password Rules Evaluation
+  const passwordRules = useMemo(() => {
+    const pwd = form.newPassword || "";
+    return {
+      minLength: pwd.length >= 8,
+      hasUpper: /[A-Z]/.test(pwd),
+      hasLower: /[a-z]/.test(pwd),
+      hasNumber: /\d/.test(pwd),
+      hasSpecial: /[^A-Za-z0-9]/.test(pwd),
+    };
+  }, [form.newPassword]);
+
+  const isPasswordValid =
+    passwordRules.minLength &&
+    passwordRules.hasUpper &&
+    passwordRules.hasLower &&
+    passwordRules.hasNumber &&
+    passwordRules.hasSpecial;
 
   const handleChange = (e) => {
     setForm({
@@ -37,17 +62,24 @@ function ForgotPassword() {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
+
+    const trimmedEmail = (form.email || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setErrorMsg("Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       await API.post("/auth/forgot-password", {
-        email: form.email,
+        email: trimmedEmail,
       });
 
-      setSuccessMsg("OTP has been sent to your registered email");
+      setSuccessMsg("OTP has been sent to your registered email address.");
       setStep(2);
     } catch (error) {
-      console.log(error);
       setErrorMsg(error.response?.data?.message || "Failed to send OTP. Please check your email.");
     } finally {
       setLoading(false);
@@ -59,13 +91,18 @@ function ForgotPassword() {
     setErrorMsg("");
     setSuccessMsg("");
 
-    if (form.newPassword !== form.confirmPassword) {
-      setErrorMsg("New passwords do not match");
+    if (!form.otp || !form.otp.trim()) {
+      setErrorMsg("Please enter the 6-digit OTP sent to your email.");
       return;
     }
 
-    if (form.newPassword.length < 6) {
-      setErrorMsg("Password must be at least 6 characters");
+    if (!isPasswordValid) {
+      setErrorMsg("New password must meet all strong security criteria below.");
+      return;
+    }
+
+    if (form.newPassword !== form.confirmPassword) {
+      setErrorMsg("Passwords do not match.");
       return;
     }
 
@@ -73,15 +110,16 @@ function ForgotPassword() {
 
     try {
       await API.post("/auth/reset-password", {
-        email: form.email,
-        otp: form.otp,
+        email: (form.email || "").trim().toLowerCase(),
+        otp: form.otp.trim(),
         newPassword: form.newPassword,
       });
 
-      alert("Password reset successful! Please sign in with your new password.");
-      navigate("/login");
+      setSuccessMsg("Password reset successfully! Redirecting to login...");
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
     } catch (error) {
-      console.log(error);
       setErrorMsg(error.response?.data?.message || "Password reset failed. Invalid or expired OTP.");
     } finally {
       setLoading(false);
@@ -89,9 +127,13 @@ function ForgotPassword() {
   };
 
   return (
-    <div className="page auth-page">
-      <div className="auth-box">
+    <div className="page auth-page customer-portal-page">
+      <div className="auth-box customer-auth-box">
         <div className="auth-header-wrapper">
+          <Link to="/" className="auth-logo-link" title="Return to Home">
+            <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="auth-brand-logo" />
+          </Link>
+
           <span className="auth-badge auth-badge-customer">
             <KeyRound size={13} />
             <span>Account Recovery</span>
@@ -127,7 +169,7 @@ function ForgotPassword() {
           {step === 1 ? (
             <>
               <div className="auth-input-group">
-                <label htmlFor="forgot-email">Registered Email</label>
+                <label htmlFor="forgot-email">Registered Email Address</label>
                 <div className="auth-input-inner">
                   <Mail size={18} className="auth-input-icon" />
                   <input
@@ -143,35 +185,26 @@ function ForgotPassword() {
                 </div>
               </div>
 
-              <button type="submit" className="auth-submit-btn" disabled={loading}>
-                {loading ? <span>Sending OTP...</span> : <span>Send Verification OTP</span>}
+              <button
+                type="submit"
+                className="auth-submit-btn customer-btn"
+                disabled={loading}
+              >
+                {loading ? "Sending Verification OTP..." : "Send Verification OTP"}
               </button>
             </>
           ) : (
             <>
               <div className="auth-input-group">
-                <label htmlFor="forgot-email-readonly">Registered Email</label>
-                <div className="auth-input-inner">
-                  <Mail size={18} className="auth-input-icon" />
-                  <input
-                    id="forgot-email-readonly"
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="auth-input-group">
-                <label htmlFor="forgot-otp">Enter OTP</label>
+                <label htmlFor="forgot-otp">6-Digit Verification OTP</label>
                 <div className="auth-input-inner">
                   <KeyRound size={18} className="auth-input-icon" />
                   <input
                     id="forgot-otp"
                     name="otp"
-                    placeholder="6-digit verification code"
+                    type="text"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP"
                     value={form.otp}
                     onChange={handleChange}
                     required
@@ -180,47 +213,95 @@ function ForgotPassword() {
               </div>
 
               <div className="auth-input-group">
-                <label htmlFor="forgot-new-pass">New Password</label>
+                <label htmlFor="forgot-new-password">New Password</label>
                 <div className="auth-input-inner">
                   <Lock size={18} className="auth-input-icon" />
                   <input
-                    id="forgot-new-pass"
+                    id="forgot-new-password"
                     name="newPassword"
-                    type="password"
-                    placeholder="At least 6 characters"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter new strong password"
                     value={form.newPassword}
                     onChange={handleChange}
                     required
                   />
+                  <button
+                    type="button"
+                    className="auth-input-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                {/* Password Criteria */}
+                <div className="password-criteria-box" aria-live="polite">
+                  <div className="criteria-header">Password must contain:</div>
+                  <ul className="criteria-list">
+                    <li className={passwordRules.minLength ? "valid" : "invalid"}>
+                      {passwordRules.minLength ? <Check size={14} className="rule-icon ok" /> : <X size={14} className="rule-icon fail" />}
+                      <span>Minimum 8 characters</span>
+                    </li>
+                    <li className={passwordRules.hasUpper ? "valid" : "invalid"}>
+                      {passwordRules.hasUpper ? <Check size={14} className="rule-icon ok" /> : <X size={14} className="rule-icon fail" />}
+                      <span>One uppercase letter (A-Z)</span>
+                    </li>
+                    <li className={passwordRules.hasLower ? "valid" : "invalid"}>
+                      {passwordRules.hasLower ? <Check size={14} className="rule-icon ok" /> : <X size={14} className="rule-icon fail" />}
+                      <span>One lowercase letter (a-z)</span>
+                    </li>
+                    <li className={passwordRules.hasNumber ? "valid" : "invalid"}>
+                      {passwordRules.hasNumber ? <Check size={14} className="rule-icon ok" /> : <X size={14} className="rule-icon fail" />}
+                      <span>One number (0-9)</span>
+                    </li>
+                    <li className={passwordRules.hasSpecial ? "valid" : "invalid"}>
+                      {passwordRules.hasSpecial ? <Check size={14} className="rule-icon ok" /> : <X size={14} className="rule-icon fail" />}
+                      <span>One special character (e.g. @, #, $, %)</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
 
               <div className="auth-input-group">
-                <label htmlFor="forgot-confirm-pass">Confirm New Password</label>
+                <label htmlFor="forgot-confirm-password">Confirm New Password</label>
                 <div className="auth-input-inner">
                   <Lock size={18} className="auth-input-icon" />
                   <input
-                    id="forgot-confirm-pass"
+                    id="forgot-confirm-password"
                     name="confirmPassword"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm new password"
                     value={form.confirmPassword}
                     onChange={handleChange}
                     required
                   />
+                  <button
+                    type="button"
+                    className="auth-input-toggle"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
 
-              <button type="submit" className="auth-submit-btn" disabled={loading}>
-                {loading ? <span>Resetting Password...</span> : <span>Update & Reset Password</span>}
+              <button
+                type="submit"
+                className="auth-submit-btn customer-btn"
+                disabled={loading || !isPasswordValid || form.newPassword !== form.confirmPassword}
+              >
+                {loading ? "Resetting Password..." : "Reset Password"}
               </button>
             </>
           )}
 
           <div className="auth-footer-links">
-            <p className="register-prompt">
-              Remember your password? <Link to="/login"><ArrowLeft size={14} /> Back to Sign In</Link>
-            </p>
+            <Link to="/login" className="back-to-login-link">
+              <ArrowLeft size={16} />
+              <span>Back to Sign In</span>
+            </Link>
           </div>
         </form>
       </div>
