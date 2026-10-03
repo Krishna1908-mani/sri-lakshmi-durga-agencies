@@ -12,7 +12,8 @@ import {
   Package, 
   Compass, 
   Clock, 
-  Sliders
+  Sliders,
+  ShieldCheck
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
@@ -118,33 +119,29 @@ function Navbar() {
             {adminToken && (
               <Link
                 to="/admin/dashboard"
-                className={location.pathname.startsWith("/admin") ? "active-link admin-nav-link" : "admin-nav-link"}
+                className="admin-portal-badge-pill"
+                title="Go to Admin Control Portal"
               >
-                <Sliders size={15} />
-                <span>Admin</span>
+                <ShieldCheck size={14} />
+                <span>Admin Portal</span>
               </Link>
             )}
           </nav>
 
           {/* Right Action Utilities */}
           <div className="nav-actions">
-            {adminToken ? (
-              <button className="login-btn btn-auth" onClick={logoutAdmin} title="Admin Sign Out">
-                <LogOut size={15} />
-                <span>{adminName || "Admin"}</span>
-              </button>
-            ) : userToken ? (
+            {userToken ? (
               <div className="user-action-group">
-                <Link to="/profile" className="profile-pill" title="My Account">
+                <Link to="/profile" className="profile-pill" title="Customer Account">
                   <User size={15} />
                   <span>{userName ? userName.split(" ")[0] : "Account"}</span>
                 </Link>
-                <button className="btn-icon-logout" onClick={logoutUser} title="Sign Out">
+                <button className="btn-icon-logout" onClick={logoutUser} title="Customer Sign Out">
                   <LogOut size={16} />
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="login-btn">
+              <Link to="/login" className="login-btn" title="Customer Sign In">
                 <User size={15} />
                 <span>Sign In</span>
               </Link>
@@ -247,20 +244,26 @@ function Navbar() {
         </nav>
 
         <div className="mobile-drawer-footer">
-          {adminToken ? (
-            <button className="mobile-drawer-btn logout" onClick={logoutAdmin}>
-              <LogOut size={16} />
-              <span>Logout Admin</span>
-            </button>
-          ) : userToken ? (
+          {userToken ? (
             <button className="mobile-drawer-btn logout" onClick={logoutUser}>
               <LogOut size={16} />
-              <span>Logout ({userName})</span>
+              <span>Sign Out ({userName ? userName.split(" ")[0] : "Customer"})</span>
             </button>
           ) : (
             <Link to="/login" className="mobile-drawer-btn login" onClick={() => setMobileMenuOpen(false)}>
               <User size={16} />
-              <span>Sign In / Register</span>
+              <span>Customer Sign In</span>
+            </Link>
+          )}
+
+          {adminToken && (
+            <Link
+              to="/admin/dashboard"
+              className="mobile-drawer-btn admin-portal-btn"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <ShieldCheck size={16} />
+              <span>Open Admin Portal</span>
             </Link>
           )}
         </div>

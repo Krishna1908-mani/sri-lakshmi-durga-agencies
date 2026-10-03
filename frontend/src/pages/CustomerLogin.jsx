@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
   User, 
-  ShieldCheck, 
   Mail, 
   Lock, 
   Eye, 
@@ -10,110 +9,83 @@ import {
   LogIn, 
   AlertCircle, 
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert
 } from "lucide-react";
 import API from "../api/axios";
 
-function CustomerLogin({ initialRole }) {
+function CustomerLogin() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  // Role can come from props (AdminLogin wrapper), searchParams (?role=admin), or default to "customer"
-  const paramRole = searchParams.get("role");
-  const defaultRole = initialRole || (paramRole === "admin" ? "admin" : "customer");
-
-  const [role, setRole] = useState(defaultRole);
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [switchSuggestion, setSwitchSuggestion] = useState(null);
 
   const [form, setForm] = useState({
     email: "",
     password: "",
   });
 
-  // Keep role in sync if URL query parameter or initialRole prop changes
-  useEffect(() => {
-    if (initialRole) {
-      setRole(initialRole);
-    } else if (paramRole === "admin" || paramRole === "customer") {
-      setRole(paramRole);
-    }
-  }, [initialRole, paramRole]);
-
-  const handleRoleChange = (newRole) => {
-    setRole(newRole);
-    setErrorMessage("");
-    setSuccessMessage("");
-    setSwitchSuggestion(null);
-
-    // Update query params if on standard /login route
-    if (!initialRole && location.pathname === "/login") {
-      setSearchParams({ role: newRole });
-    }
-  };
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isAdminAccount, setIsAdminAccount] = useState(false);
 
   const handleChange = (e) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
-    if (errorMessage) setErrorMessage("");
+    if (errorMessage) {
+      setErrorMessage("");
+      setIsAdminAccount(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
-    setSwitchSuggestion(null);
+    setIsAdminAccount(false);
     setLoading(true);
 
     const trimmedEmail = form.email.trim().toLowerCase();
 
+    if (!trimmedEmail || !form.password) {
+      setErrorMessage("Please enter both email and password.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Use role-specific endpoint or unified /auth/login with role validation
-      const endpoint = role === "admin" ? "/auth/admin/login" : "/auth/login";
-      const payload = {
+      const res = await API.post("/auth/login", {
         email: trimmedEmail,
         password: form.password,
-        role: role,
-      };
-
-      const res = await API.post(endpoint, payload);
+        role: "customer",
+      });
 
       const returnedUser = res.data.user || {};
-      const returnedRole = returnedUser.role || role;
 
-      if (returnedRole === "admin" || role === "admin") {
-        localStorage.setItem("adminToken", res.data.token);
-        localStorage.setItem("adminName", returnedUser.name || "Admin");
-        localStorage.setItem("adminEmail", returnedUser.email || trimmedEmail);
-
-        setSuccessMessage("Admin authentication successful! Redirecting to Dashboard...");
-        setTimeout(() => {
-          navigate("/admin/dashboard");
-        }, 600);
-      } else {
-        localStorage.setItem("userToken", res.data.token);
-        localStorage.setItem("userName", returnedUser.name || "Customer");
-        localStorage.setItem("userEmail", returnedUser.email || trimmedEmail);
-
-        setSuccessMessage("Login successful! Welcome back.");
-        const destination = location.state?.from || "/";
-        setTimeout(() => {
-          navigate(destination);
-        }, 600);
+      localStorage.setItem("userToken", res.data.token);
+      localStorage.setItem("userName", returnedUser.name || "Customer");
+      localStorage.setItem("userEmail", returnedUser.email || trimmedEmail);
+      if (returnedUser.id) {
+        localStorage.setItem("userId", returnedUser.id);
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      const msg = error.response?.data?.message || "Login failed. Please check your credentials.";
-      setErrorMessage(msg);
 
-      if (msg.includes("switch to the Admin") || msg.includes("administrator privileges")) {
-        setSwitchSuggestion(role === "customer" ? "admin" : "customer");
+      setSuccessMessage("Login successful! Welcome back.");
+      
+      const destination = location.state?.from || "/profile";
+      setTimeout(() => {
+        navigate(destination);
+      }, 500);
+    } catch (error) {
+      const respData = error.response?.data;
+      if (respData?.isAdminAccount) {
+        setIsAdminAccount(true);
+        setErrorMessage(respData.message || "This account is an Administrator. Please use the Admin Portal.");
+      } else {
+        setErrorMessage(
+          respData?.message || "Invalid email or password. Please try again."
+        );
       }
     } finally {
       setLoading(false);
@@ -121,62 +93,37 @@ function CustomerLogin({ initialRole }) {
   };
 
   return (
-    <div className="page auth-page">
-      <div className="auth-box">
-        {/* Role Switcher Tabs */}
-        <div className="auth-role-switch" role="tablist" aria-label="Login Role Selection">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={role === "customer"}
-            className={`auth-role-btn ${role === "customer" ? "active" : ""}`}
-            onClick={() => handleRoleChange("customer")}
-          >
-            <User size={16} />
-            <span>Customer Login</span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={role === "admin"}
-            className={`auth-role-btn ${role === "admin" ? "active admin-active" : ""}`}
-            onClick={() => handleRoleChange("admin")}
-          >
-            <ShieldCheck size={16} />
-            <span>Admin Login</span>
-          </button>
-        </div>
-
-        {/* Role Badge & Header */}
+    <div className="page auth-page customer-portal-page">
+      <div className="auth-box customer-auth-box">
+        {/* Brand Header */}
         <div className="auth-header-wrapper">
-          <span className={`auth-badge ${role === "admin" ? "auth-badge-admin" : "auth-badge-customer"}`}>
-            {role === "admin" ? <ShieldCheck size={13} /> : <User size={13} />}
-            {role === "admin" ? "Administrator Access" : "Customer Portal"}
+          <Link to="/" className="auth-logo-link" title="Return to Home">
+            <img src="/logo.png" alt="Sri Lakshmi Durga Agencies" className="auth-brand-logo" />
+          </Link>
+
+          <span className="auth-badge auth-badge-customer">
+            <User size={13} />
+            <span>Customer Portal</span>
           </span>
 
-          <h1>{role === "admin" ? "Admin Sign In" : "Customer Sign In"}</h1>
-          <p>
-            {role === "admin"
-              ? "Sign in with management credentials to access store controls"
-              : "Login to track orders, manage wishlist, and enjoy quick checkout"}
-          </p>
+          <h1>Welcome Back</h1>
+          <p>Sign in to your customer account to track orders and manage your wishlist.</p>
         </div>
 
         {/* Feedback Messages */}
         {errorMessage && (
           <div className="auth-alert-box" role="alert">
-            <AlertCircle size={18} className="alert-icon" />
+            {isAdminAccount ? (
+              <ShieldAlert size={18} className="alert-icon" />
+            ) : (
+              <AlertCircle size={18} className="alert-icon" />
+            )}
             <div className="alert-content">
               <span>{errorMessage}</span>
-              {switchSuggestion && (
-                <button
-                  type="button"
-                  className="auth-switch-link-btn"
-                  onClick={() => handleRoleChange(switchSuggestion)}
-                >
-                  Switch to {switchSuggestion === "admin" ? "Admin" : "Customer"} Login &rarr;
-                </button>
+              {isAdminAccount && (
+                <Link to="/admin/login" className="auth-switch-link-btn">
+                  Go to Admin Portal &rarr;
+                </Link>
               )}
             </div>
           </div>
@@ -191,19 +138,17 @@ function CustomerLogin({ initialRole }) {
           </div>
         )}
 
-        {/* Main Login Form */}
+        {/* Customer Login Form */}
         <form onSubmit={handleSubmit} noValidate>
           <div className="auth-input-group">
-            <label htmlFor="auth-email">
-              {role === "admin" ? "Admin Email Address" : "Customer Email Address"}
-            </label>
+            <label htmlFor="customer-email">Email Address</label>
             <div className="auth-input-inner">
               <Mail size={18} className="auth-input-icon" />
               <input
-                id="auth-email"
+                id="customer-email"
                 name="email"
                 type="email"
-                placeholder={role === "admin" ? "admin@srilakshmidurga.com" : "name@example.com"}
+                placeholder="name@example.com"
                 value={form.email}
                 onChange={handleChange}
                 required
@@ -213,14 +158,19 @@ function CustomerLogin({ initialRole }) {
           </div>
 
           <div className="auth-input-group">
-            <label htmlFor="auth-password">Password</label>
+            <div className="label-with-action">
+              <label htmlFor="customer-password">Password</label>
+              <Link to="/forgot-password" className="forgot-password-link">
+                Forgot Password?
+              </Link>
+            </div>
             <div className="auth-input-inner">
               <Lock size={18} className="auth-input-icon" />
               <input
-                id="auth-password"
+                id="customer-password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
+                placeholder="Enter your account password"
                 value={form.password}
                 onChange={handleChange}
                 required
@@ -239,43 +189,40 @@ function CustomerLogin({ initialRole }) {
 
           <button
             type="submit"
-            className={`auth-submit-btn ${role === "admin" ? "admin-btn" : ""}`}
+            className="auth-submit-btn customer-btn"
             disabled={loading}
           >
             {loading ? (
-              <span>Authenticating...</span>
+              <span>Signing In...</span>
             ) : (
               <>
                 <LogIn size={18} />
-                <span>{role === "admin" ? "Sign In as Admin" : "Sign In as Customer"}</span>
+                <span>Sign In as Customer</span>
               </>
             )}
           </button>
 
-          {/* Customer Specific Links */}
-          {role === "customer" && (
-            <div className="auth-footer-links">
-              <p className="forgot-link">
-                <Link to="/forgot-password">Forgot Password?</Link>
-              </p>
-              <p className="register-prompt">
-                New customer? <Link to="/register">Create an account <ArrowRight size={14} /></Link>
-              </p>
-            </div>
-          )}
+          <div className="auth-footer-links">
+            <p className="register-prompt">
+              New to Sri Lakshmi Durga Agencies?{" "}
+              <Link to="/register">
+                Create Account <ArrowRight size={13} />
+              </Link>
+            </p>
+          </div>
 
-          {/* Admin Specific Notice */}
-          {role === "admin" && (
-            <div className="admin-security-note">
-              <ShieldCheck size={15} />
-              <span>Restricted access for authorized store personnel only</span>
-            </div>
-          )}
+          {/* Discreet Admin Portal Link */}
+          <div className="portal-switch-footer">
+            <span>Store Staff or Administrator?</span>
+            <Link to="/admin/login" className="portal-switch-link">
+              Admin Portal &rarr;
+            </Link>
+          </div>
         </form>
       </div>
     </div>
   );
 }
 
-export { CustomerLogin };
 export default CustomerLogin;
+export { CustomerLogin };

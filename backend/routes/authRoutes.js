@@ -129,20 +129,20 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Role check if explicitly requested
-    if (role && user.role !== role) {
-      if (role === "admin" && user.role === "customer") {
-        return res.status(403).json({
-          success: false,
-          message: "Access denied. This account does not have administrator privileges.",
-        });
-      }
-      if (role === "customer" && user.role === "admin") {
-        return res.status(400).json({
-          success: false,
-          message: "This account has administrator privileges. Please switch to the Admin login tab.",
-        });
-      }
+    // Strict role check
+    if (user.role === "admin" && role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "This account is an Administrator. Please use the separate Admin Portal to sign in.",
+        isAdminAccount: true,
+      });
+    }
+
+    if (role === "admin" && user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. This account does not have administrator privileges.",
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -150,7 +150,7 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: role === "admin" ? "Invalid admin email or password" : "Invalid email or password",
+        message: "Invalid email or password",
       });
     }
 
@@ -174,7 +174,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Admin login
+// Dedicated Admin Portal Login
 router.post("/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -182,17 +182,24 @@ router.post("/admin/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Admin email and password are required",
       });
     }
 
     const trimmedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
     const admin = await findUserByEmail(trimmedEmail);
 
-    if (!admin || admin.role !== "admin") {
+    if (!admin) {
       return res.status(401).json({
         success: false,
-        message: "Invalid admin email or password",
+        message: "Invalid admin credentials",
+      });
+    }
+
+    if (admin.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. This portal is strictly restricted to store administrators.",
       });
     }
 
@@ -201,7 +208,7 @@ router.post("/admin/login", async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid admin email or password",
+        message: "Invalid admin credentials",
       });
     }
 
