@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:customer && npm run build:admin && node -e \"const fs=require('fs'); fs.mkdirSync('dist/customer',{recursive:true}); fs.copyFileSync('dist/index.html','dist/customer/index.html'); if(fs.existsSync('dist/assets')){fs.cpSync('dist/assets','dist/customer/assets',{recursive:true});}\"",
+    "build": "npm run build:customer && npm run build:admin && node -e \"const fs=require('fs'); fs.mkdirSync('dist/customer',{recursive:true}); fs.copyFileSync('dist/index.html','dist/customer/index.html'); if(fs.existsSync('dist/assets')){fs.cpSync('dist/assets','dist/customer/assets',{recursive:true});} if(fs.existsSync('dist/admin/assets')){fs.cpSync('dist/admin/assets','dist/assets',{recursive:true});}\"",
     "build:customer": "vite build --config vite.config.customer.js",
     "build:admin": "vite build --config vite.config.admin.js",
     "build:all": "npm run build",
