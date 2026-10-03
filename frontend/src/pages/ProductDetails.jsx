@@ -10,7 +10,6 @@ import {
   RotateCcw, 
   ZoomIn, 
   X, 
-  ArrowLeft,
   ChevronRight,
   Sparkles,
   MessageSquare

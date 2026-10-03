@@ -4,16 +4,11 @@ import {
   ShoppingBag, 
   Search, 
   FileText, 
-  Tag, 
   MapPin, 
   Phone, 
   Mail, 
   Save, 
-  Printer, 
-  CheckCircle, 
-  Clock,
-  Truck,
-  AlertCircle
+  Printer
 } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";

@@ -4,13 +4,8 @@ import {
   Package, 
   Compass, 
   Calendar, 
-  CreditCard, 
   Tag, 
   XCircle, 
-  CheckCircle, 
-  Clock, 
-  Truck,
-  ArrowRight,
   ShoppingBag
 } from "lucide-react";
 import API from "../api/axios";

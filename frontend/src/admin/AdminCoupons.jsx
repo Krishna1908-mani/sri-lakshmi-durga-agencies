@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { 
   Tag, 
   PlusCircle, 
-  Trash2, 
-  Percent, 
-  IndianRupee, 
-  Sparkles,
-  CheckCircle2,
-  Calendar
+  Trash2
 } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";

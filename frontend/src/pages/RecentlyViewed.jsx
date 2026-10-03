@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Clock, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { Clock, Trash2, ShoppingBag } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 
 function RecentlyViewed() {

@@ -11,6 +11,8 @@
  * ==============================================================================
  */
 
+process.env.NODE_ENV = "test";
+
 const http = require("http");
 const app = require("../server");
 const tokenService = require("../utils/tokenService");
@@ -24,7 +26,10 @@ function runHttp(path, options = {}) {
     const url = new URL(path, baseUrl);
     const reqOptions = {
       method: options.method || "GET",
-      headers: options.headers || {},
+      headers: {
+        Connection: "close",
+        ...(options.headers || {}),
+      },
     };
 
     const req = http.request(url, reqOptions, (res) => {
@@ -272,6 +277,9 @@ async function runSecuritySuite() {
     process.exitCode = 1;
   } finally {
     if (server) {
+      if (typeof server.closeAllConnections === "function") {
+        server.closeAllConnections();
+      }
       server.close();
     }
   }

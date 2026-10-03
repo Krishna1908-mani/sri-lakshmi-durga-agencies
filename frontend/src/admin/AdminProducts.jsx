@@ -5,10 +5,7 @@ import {
   Search, 
   Edit, 
   Trash2, 
-  Package, 
-  ArrowLeft,
-  AlertTriangle,
-  CheckCircle2
+  Package
 } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";

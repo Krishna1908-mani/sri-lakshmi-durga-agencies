@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Printer, ArrowLeft, Package, Sparkles } from "lucide-react";
+import { Printer, ArrowLeft, Package } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";
 

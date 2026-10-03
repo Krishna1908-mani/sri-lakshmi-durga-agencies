@@ -3,8 +3,6 @@ import {
   CheckCircle2, 
   Printer, 
   Compass, 
-  ShoppingBag, 
-  Sparkles, 
   FileText,
   Mail,
   Phone,

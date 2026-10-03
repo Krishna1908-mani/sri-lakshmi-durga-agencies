@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
 /**
@@ -16,7 +17,7 @@ function decodeJwt(token) {
         .join("")
     );
     return JSON.parse(jsonPayload);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -31,9 +32,50 @@ function decodeJwt(token) {
  */
 function AdminProtected({ children }) {
   const location = useLocation();
-  const adminToken = localStorage.getItem("adminToken");
+  const [authState] = useState(() => {
+    const adminToken = localStorage.getItem("adminToken");
+    if (!adminToken) {
+      return { status: "missing_token" };
+    }
 
-  if (!adminToken) {
+    const decoded = decodeJwt(adminToken);
+    if (!decoded) {
+      return { status: "invalid" };
+    }
+
+    // Check expiration
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      return { status: "expired" };
+    }
+
+    // Check audience isolation: MUST NOT accept customer-portal audience tokens
+    if (decoded.aud && decoded.aud !== "admin-portal") {
+      return { status: "audience_mismatch" };
+    }
+
+    // Check role
+    if (decoded.role !== "admin") {
+      return { status: "unauthorized" };
+    }
+
+    return { status: "authorized" };
+  });
+
+  useEffect(() => {
+    if (authState.status !== "authorized" && authState.status !== "missing_token") {
+      if (authState.status === "expired") {
+        console.warn("Admin session expired. Redirecting to admin login.");
+      } else if (authState.status === "audience_mismatch") {
+        console.error("Security Alert: Customer token attempted on Admin Protected route.");
+      } else if (authState.status === "unauthorized") {
+        console.error("Security Alert: Non-admin role in admin protected route.");
+      }
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
+    }
+  }, [authState.status]);
+
+  if (authState.status === "missing_token") {
     return (
       <Navigate
         to={location.pathname.startsWith("/admin") ? "/admin/login" : "/login"}
@@ -43,53 +85,14 @@ function AdminProtected({ children }) {
     );
   }
 
-  const decoded = decodeJwt(adminToken);
-
-  if (!decoded) {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
+  if (authState.status !== "authorized") {
     return (
       <Navigate
-        to={location.pathname.startsWith("/admin") ? "/admin/login?reason=invalid" : "/login?reason=invalid"}
-        replace
-      />
-    );
-  }
-
-  // Check expiration
-  if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-    console.warn("Admin session expired. Redirecting to admin login.");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
-    return (
-      <Navigate
-        to={location.pathname.startsWith("/admin") ? "/admin/login?reason=expired" : "/login?reason=expired"}
-        replace
-      />
-    );
-  }
-
-  // Check audience isolation: MUST NOT accept customer-portal audience tokens
-  if (decoded.aud && decoded.aud !== "admin-portal") {
-    console.error("Security Alert: Customer token attempted on Admin Protected route.");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
-    return (
-      <Navigate
-        to={location.pathname.startsWith("/admin") ? "/admin/login?reason=audience_mismatch" : "/login?reason=audience_mismatch"}
-        replace
-      />
-    );
-  }
-
-  // Check role
-  if (decoded.role !== "admin") {
-    console.error("Security Alert: Non-admin role in admin protected route.");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
-    return (
-      <Navigate
-        to={location.pathname.startsWith("/admin") ? "/admin/login?reason=unauthorized" : "/login?reason=unauthorized"}
+        to={
+          location.pathname.startsWith("/admin")
+            ? `/admin/login?reason=${authState.status}`
+            : `/login?reason=${authState.status}`
+        }
         replace
       />
     );

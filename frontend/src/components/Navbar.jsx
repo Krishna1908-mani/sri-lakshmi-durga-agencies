@@ -30,7 +30,6 @@ function Navbar() {
   const userName = localStorage.getItem("userName");
 
   const adminToken = localStorage.getItem("adminToken");
-  const adminName = localStorage.getItem("adminName");
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -41,12 +40,6 @@ function Navbar() {
     localStorage.removeItem("userToken");
     localStorage.removeItem("userName");
     localStorage.removeItem("userEmail");
-    navigate("/");
-  };
-
-  const logoutAdmin = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminName");
     navigate("/");
   };
 

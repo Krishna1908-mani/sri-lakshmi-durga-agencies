@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { 
-  Settings, 
   User, 
   Mail, 
   Lock, 
   Save, 
   ShieldCheck, 
-  KeyRound,
-  AlertCircle
+  KeyRound
 } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";

@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { 
-  BarChart3, 
   IndianRupee, 
-  Calendar, 
   Filter, 
-  FileText, 
   CreditCard, 
   Banknote, 
   CheckCircle2, 
-  XCircle,
   Download
 } from "lucide-react";
 import API from "../api/axios";
@@ -19,7 +14,6 @@ function AdminReports() {
   const token = localStorage.getItem("adminToken");
 
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
     startDate: "",
@@ -31,7 +25,6 @@ function AdminReports() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        setLoading(true);
         const res = await API.get("/orders", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -42,8 +35,6 @@ function AdminReports() {
       } catch (error) {
         console.log(error);
         alert("Failed to fetch report data");
-      } finally {
-        setLoading(false);
       }
     };
 

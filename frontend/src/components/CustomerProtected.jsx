@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
 function decodeJwt(token) {
@@ -13,7 +14,7 @@ function decodeJwt(token) {
         .join("")
     );
     return JSON.parse(jsonPayload);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -24,33 +25,46 @@ function decodeJwt(token) {
  */
 function CustomerProtected({ children }) {
   const location = useLocation();
-  const token = localStorage.getItem("userToken");
+  const [authState] = useState(() => {
+    const token = localStorage.getItem("userToken");
+    if (!token) {
+      return { status: "missing_token" };
+    }
 
-  if (!token) {
+    const decoded = decodeJwt(token);
+    if (!decoded) {
+      return { status: "invalid" };
+    }
+
+    // Check expiration
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      return { status: "expired" };
+    }
+
+    // Check audience isolation: MUST NOT accept admin-portal tokens
+    if (decoded.aud && decoded.aud === "admin-portal") {
+      return { status: "portal_mismatch" };
+    }
+
+    return { status: "authorized" };
+  });
+
+  useEffect(() => {
+    if (authState.status !== "authorized" && authState.status !== "missing_token") {
+      if (authState.status === "portal_mismatch") {
+        console.warn("Admin token presented at Customer Protected route. Please sign in as a customer.");
+      }
+      localStorage.removeItem("userToken");
+      localStorage.removeItem("user");
+    }
+  }, [authState.status]);
+
+  if (authState.status === "missing_token") {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const decoded = decodeJwt(token);
-
-  if (!decoded) {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("user");
-    return <Navigate to="/login?reason=invalid" replace />;
-  }
-
-  // Check expiration
-  if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("user");
-    return <Navigate to="/login?reason=expired" replace />;
-  }
-
-  // Check audience isolation: MUST NOT accept admin-portal tokens
-  if (decoded.aud && decoded.aud === "admin-portal") {
-    console.warn("Admin token presented at Customer Protected route. Please sign in as a customer.");
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("user");
-    return <Navigate to="/login?reason=portal_mismatch" replace />;
+  if (authState.status !== "authorized") {
+    return <Navigate to={`/login?reason=${authState.status}`} replace />;
   }
 
   return children;

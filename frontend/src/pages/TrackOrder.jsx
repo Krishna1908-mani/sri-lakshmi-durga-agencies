@@ -2,11 +2,7 @@ import { useState } from "react";
 import { 
   Compass, 
   Search, 
-  Package, 
   CheckCircle2, 
-  Clock, 
-  Truck, 
-  MapPin, 
   MessageCircle,
   AlertCircle
 } from "lucide-react";

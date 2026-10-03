@@ -3,11 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { 
   Printer, 
   ArrowLeft, 
-  Sparkles, 
   Phone, 
   Mail, 
-  FileText,
-  ShieldCheck
+  FileText
 } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";

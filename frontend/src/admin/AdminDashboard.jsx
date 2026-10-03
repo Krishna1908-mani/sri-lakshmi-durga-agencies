@@ -10,7 +10,6 @@ import {
   BarChart3, 
   Tag, 
   ArrowRight,
-  TrendingUp,
   Sparkles
 } from "lucide-react";
 import API from "../api/axios";
@@ -28,11 +27,9 @@ function AdminDashboard() {
   });
 
   const [lowStockProducts, setLowStockProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const fetchStats = useCallback(async () => {
     try {
-      setLoading(true);
       const productsRes = await API.get("/products");
 
       const ordersRes = await API.get("/orders", {
@@ -79,8 +76,6 @@ function AdminDashboard() {
         localStorage.removeItem("adminName");
         navigate("/admin/login");
       }
-    } finally {
-      setLoading(false);
     }
   }, [token, navigate]);
 

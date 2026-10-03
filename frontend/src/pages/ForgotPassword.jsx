@@ -6,8 +6,7 @@ import {
   Lock, 
   ArrowLeft, 
   CheckCircle2, 
-  AlertCircle,
-  ShieldCheck
+  AlertCircle
 } from "lucide-react";
 import API from "../api/axios";
 

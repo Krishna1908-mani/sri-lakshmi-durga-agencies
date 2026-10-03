@@ -9,14 +9,12 @@ import {
   Image as ImageIcon, 
   Settings, 
   ExternalLink, 
-  LogOut,
-  Sparkles
+  LogOut
 } from "lucide-react";
 
 function AdminNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const adminName = localStorage.getItem("adminName") || "Admin";
 
   const logout = () => {
     localStorage.removeItem("adminToken");

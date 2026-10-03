@@ -4,8 +4,7 @@ import {
   Save, 
   Upload, 
   Image as ImageIcon, 
-  ArrowLeft,
-  Trash2
+  ArrowLeft
 } from "lucide-react";
 import API from "../api/axios";
 import AdminNavbar from "./AdminNavbar";

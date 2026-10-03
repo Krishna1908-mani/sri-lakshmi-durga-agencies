@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { 
   ShieldCheck, 
   Lock, 
-  Truck, 
   Tag, 
   CheckCircle2, 
   CreditCard, 
