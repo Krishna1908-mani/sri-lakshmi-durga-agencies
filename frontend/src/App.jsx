@@ -1,294 +1,38 @@
-import { useEffect } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  useLocation,
-} from "react-router-dom";
+import { useState, useEffect } from "react";
+import CustomerApp from "./CustomerApp";
+import AdminApp from "./AdminApp";
 
-import { CartProvider } from "./context/CartContext";
-import { WishlistProvider } from "./context/WishlistContext";
-
-import { supabase } from "./lib/supabaseClient";
-
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import WhatsAppButton from "./components/WhatsAppButton";
-
-import Home from "./pages/Home";
-import Shop from "./pages/Shop";
-import ProductDetails from "./pages/ProductDetails";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import TrackOrder from "./pages/TrackOrder";
-import OrderSuccess from "./pages/OrderSuccess";
-import CustomerLogin from "./pages/CustomerLogin";
-import Register from "./pages/Register";
-import MyOrders from "./pages/MyOrders";
-import Wishlist from "./pages/Wishlist";
-import RecentlyViewed from "./pages/RecentlyViewed";
-import Profile from "./pages/Profile";
-import ForgotPassword from "./pages/ForgotPassword";
-
-import AdminLogin from "./admin/AdminLogin";
-import AdminDashboard from "./admin/AdminDashboard";
-import AdminProducts from "./admin/AdminProducts";
-import AddProduct from "./admin/AddProduct";
-import EditProduct from "./admin/EditProduct";
-import AdminOrders from "./admin/AdminOrders";
-import AdminCoupons from "./admin/AdminCoupons";
-import AdminReports from "./admin/AdminReports";
-import AdminInvoice from "./admin/AdminInvoice";
-import AdminShippingLabel from "./admin/AdminShippingLabel";
-import AdminBanner from "./admin/AdminBanner";
-import AdminProtected from "./admin/AdminProtected";
-import AdminSettings from "./admin/AdminSettings";
-
-import "./App.css";
-
-function AppLayout() {
-  const location = useLocation();
-
-  const isAdminPage = location.pathname.startsWith("/admin");
-
-  return (
-    <>
-      {/* Customer Navbar */}
-      {!isAdminPage && <Navbar />}
-
-      <Routes>
-        {/* ================= CUSTOMER ROUTES ================= */}
-
-        <Route path="/" element={<Home />} />
-
-        <Route path="/shop" element={<Shop />} />
-
-        <Route
-          path="/product/:id"
-          element={<ProductDetails />}
-        />
-
-        <Route
-          path="/cart"
-          element={<Cart />}
-        />
-
-        <Route
-          path="/checkout"
-          element={<Checkout />}
-        />
-
-        <Route
-          path="/track-order"
-          element={<TrackOrder />}
-        />
-
-        <Route
-          path="/order-success"
-          element={<OrderSuccess />}
-        />
-
-        <Route
-          path="/login"
-          element={<CustomerLogin />}
-        />
-
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
-
-        <Route
-          path="/my-orders"
-          element={<MyOrders />}
-        />
-
-        <Route
-          path="/wishlist"
-          element={<Wishlist />}
-        />
-
-        <Route
-          path="/recently-viewed"
-          element={<RecentlyViewed />}
-        />
-
-        <Route
-          path="/profile"
-          element={<Profile />}
-        />
-
-        {/* ================= ADMIN LOGIN ================= */}
-
-        <Route
-          path="/admin/login"
-          element={<AdminLogin />}
-        />
-
-        {/* ================= ADMIN PROTECTED ROUTES ================= */}
-
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminProtected>
-              <AdminDashboard />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/products"
-          element={
-            <AdminProtected>
-              <AdminProducts />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/add-product"
-          element={
-            <AdminProtected>
-              <AddProduct />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/edit-product/:id"
-          element={
-            <AdminProtected>
-              <EditProduct />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/orders"
-          element={
-            <AdminProtected>
-              <AdminOrders />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/coupons"
-          element={
-            <AdminProtected>
-              <AdminCoupons />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/reports"
-          element={
-            <AdminProtected>
-              <AdminReports />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/invoice/:id"
-          element={
-            <AdminProtected>
-              <AdminInvoice />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/shipping-label/:id"
-          element={
-            <AdminProtected>
-              <AdminShippingLabel />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/banner"
-          element={
-            <AdminProtected>
-              <AdminBanner />
-            </AdminProtected>
-          }
-        />
-
-        <Route
-          path="/admin/settings"
-          element={
-            <AdminProtected>
-              <AdminSettings />
-            </AdminProtected>
-          }
-        />
-      </Routes>
-
-      {/* Customer WhatsApp Button */}
-      {!isAdminPage && <WhatsAppButton />}
-
-      {/* Customer Footer */}
-      {!isAdminPage && <Footer />}
-    </>
-  );
-}
-
+/**
+ * ============================================================================
+ * SRI LAKSHMI DURGA AGENCIES — HYBRID DEV / RUNTIME ENTRYPOINT
+ * In production: Vite builds separate physical bundles (dist/customer & dist/admin)
+ * In development: Seamlessly mounts AdminApp or CustomerApp based on subdomain/URL
+ * ============================================================================
+ */
 function App() {
-  /*
-   * TEMPORARY SUPABASE CONNECTION TEST
-   *
-   * After we confirm Supabase works,
-   * we will remove this useEffect.
-   */
+  const [isAdminPortal, setIsAdminPortal] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const host = window.location.hostname.toLowerCase();
+    const pathname = window.location.pathname.toLowerCase();
+    return host.startsWith("admin.") || pathname.startsWith("/admin");
+  });
+
   useEffect(() => {
-    const testSupabaseConnection = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("connection_test")
-          .select("*")
-          .limit(1);
-
-        if (error) {
-          console.error(
-            "❌ Supabase connection failed:",
-            error
-          );
-
-          return;
-        }
-
-        console.log(
-          "✅ Supabase connected successfully:",
-          data
-        );
-      } catch (error) {
-        console.error(
-          "❌ Unexpected Supabase error:",
-          error
-        );
-      }
+    const handlePopState = () => {
+      const host = window.location.hostname.toLowerCase();
+      const pathname = window.location.pathname.toLowerCase();
+      setIsAdminPortal(host.startsWith("admin.") || pathname.startsWith("/admin"));
     };
 
-    testSupabaseConnection();
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  return (
-    <CartProvider>
-      <WishlistProvider>
-        <BrowserRouter>
-          <AppLayout />
-        </BrowserRouter>
-      </WishlistProvider>
-    </CartProvider>
-  );
+  if (isAdminPortal) {
+    return <AdminApp />;
+  }
+
+  return <CustomerApp />;
 }
 
 export default App;

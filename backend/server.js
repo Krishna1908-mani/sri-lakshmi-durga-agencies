@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const fs = require("fs");
 const helmet = require("helmet");
@@ -33,7 +34,7 @@ app.use(
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // 300 requests per 15 min per IP
+  max: 500, // 500 requests per 15 min per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -44,7 +45,7 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 25, // 25 auth attempts per 15 min per IP
+  max: 30, // 30 auth attempts per 15 min per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -55,15 +56,24 @@ const authLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 app.use("/api/auth", authLimiter);
+app.use("/api/v1/customer/auth", authLimiter);
+app.use("/api/v1/admin/auth", authLimiter);
 
 // ============================================================
-// CORS
+// STRICT SUBDOMAIN & PORTAL CORS ISOLATION
 // ============================================================
 
-const allowedOrigins = [
+const configuredOrigins = [
   process.env.FRONTEND_URL,
-  "http://localhost:5173",
+  process.env.CUSTOMER_PORTAL_URL,
+  process.env.ADMIN_PORTAL_URL,
+  "http://localhost:5173", // Customer Dev
+  "http://localhost:5174", // Admin Dev
   "http://localhost:3000",
+  "http://app.localhost",
+  "http://admin.localhost",
+  "https://app.srilakshmidurgaagencies.com",
+  "https://admin.srilakshmidurgaagencies.com",
 ]
   .filter(Boolean)
   .flatMap((url) =>
@@ -72,15 +82,17 @@ const allowedOrigins = [
       .map((item) => item.trim().replace(/\/$/, ""))
   );
 
+const allowedOrigins = Array.from(new Set(configuredOrigins));
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow tools like Postman, curl, or server-to-server health checks
+      // Allow internal tools, curl, and server-side SSR / health checks
       if (!origin) {
         return callback(null, true);
       }
 
-      // Development mode allows all local origins
+      // Development mode allows localhost origins
       if (process.env.NODE_ENV !== "production") {
         return callback(null, true);
       }
@@ -105,9 +117,10 @@ app.use(
 );
 
 // ============================================================
-// BODY PARSERS
+// COOKIE & BODY PARSERS
 // ============================================================
 
+app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
@@ -133,6 +146,10 @@ app.get("/", (req, res) => {
     status: "ok",
     message: "Sri Lakshmi Durga Agencies Backend API is running",
     service: "sri-lakshmi-durga-agencies",
+    portals: {
+      customer: "/api/v1/customer/*",
+      admin: "/api/v1/admin/*",
+    },
   });
 });
 
@@ -147,7 +164,17 @@ app.get("/api/health", (req, res) => {
 });
 
 // ============================================================
-// API ROUTES
+// NAMESPACED API ROUTERS (ARCHITECTURAL ISOLATION)
+// ============================================================
+
+// Customer API tree (/api/v1/customer/*)
+app.use("/api/v1/customer", require("./routes/customerApi"));
+
+// Administrator API tree (/api/v1/admin/*)
+app.use("/api/v1/admin", require("./routes/adminApi"));
+
+// ============================================================
+// BACKWARD-COMPATIBLE API ROUTES
 // ============================================================
 
 app.use("/api/auth", require("./routes/authRoutes"));
@@ -194,7 +221,12 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log("Supabase PostgreSQL & Storage runtime enabled");
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log("Supabase PostgreSQL & Storage runtime enabled");
+    console.log("Architectural Separation: /api/v1/customer & /api/v1/admin active");
+  });
+}
+
+module.exports = app;

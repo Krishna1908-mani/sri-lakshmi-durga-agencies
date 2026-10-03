@@ -1,18 +1,23 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const supabase = require("../config/supabase");
-const { protectAdmin } = require("../middleware/authMiddleware");
+const tokenService = require("../utils/tokenService");
+const {
+  requireCustomerAuth,
+  requireAdminAuth,
+  protectAdmin,
+} = require("../middleware/authMiddleware");
 const sendEmail = require("../utils/sendEmail");
 
 const router = express.Router();
 
-const generateToken = (id) => {
-  const secret = process.env.JWT_SECRET || "fallback_default_jwt_secret_dev_only";
-  return jwt.sign({ id: String(id) }, secret, {
-    expiresIn: "30d",
-  });
-};
+/**
+ * ============================================================================
+ * SRI LAKSHMI DURGA AGENCIES — AUTHENTICATION ROUTER
+ * Handles separated Customer and Admin authentication flows, issuing
+ * cryptographically isolated tokens and host-only cookies.
+ * ============================================================================
+ */
 
 async function findUserByEmail(email) {
   if (!email) return null;
@@ -45,7 +50,14 @@ async function findUserByEmail(email) {
   return null;
 }
 
-// Customer register
+// ============================================================================
+// CUSTOMER AUTHENTICATION ENDPOINTS
+// ============================================================================
+
+/**
+ * Customer Registration
+ * POST /api/auth/register or /api/v1/customer/auth/register
+ */
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -88,11 +100,16 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    const token = tokenService.generateCustomerToken(data);
+    tokenService.setCustomerCookie(res, token);
+
     res.status(201).json({
       success: true,
-      message: "Registration successful",
-      token: generateToken(data.id),
+      message: "Customer registration successful",
+      token,
+      audience: tokenService.CUSTOMER_AUDIENCE,
       user: {
+        id: String(data.id),
         name: data.name,
         email: data.email,
         role: data.role,
@@ -107,7 +124,10 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// User / Admin login (Supports both Customer and Admin)
+/**
+ * Customer Login
+ * POST /api/auth/login or /api/v1/customer/auth/login
+ */
 router.post("/login", async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -125,19 +145,21 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: role === "admin" ? "Invalid admin email or password" : "Invalid email or password",
+        message: "Invalid email or password",
       });
     }
 
-    // Strict role check
+    // Explicitly reject admins trying to use customer portal login
     if (user.role === "admin" && role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "This account is an Administrator. Please use the separate Admin Portal to sign in.",
+        message: "This account has Administrative credentials. Access through the Customer Portal is blocked. Please access via the Admin Portal.",
+        code: "ADMIN_ACCOUNT_BLOCKED_ON_CUSTOMER_PORTAL",
         isAdminAccount: true,
       });
     }
 
+    // Reject customers trying to claim admin role on generic login
     if (role === "admin" && user.role !== "admin") {
       return res.status(403).json({
         success: false,
@@ -146,7 +168,6 @@ router.post("/login", async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -154,10 +175,31 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    if (user.role === "admin") {
+      const token = tokenService.generateAdminToken(user);
+      tokenService.setAdminCookie(res, token);
+      return res.json({
+        success: true,
+        message: "Admin login successful",
+        token,
+        audience: tokenService.ADMIN_AUDIENCE,
+        user: {
+          id: String(user.id),
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    }
+
+    const token = tokenService.generateCustomerToken(user);
+    tokenService.setCustomerCookie(res, token);
+
     res.json({
       success: true,
-      message: `${user.role === "admin" ? "Admin" : "Customer"} login successful`,
-      token: generateToken(user.id),
+      message: "Customer login successful",
+      token,
+      audience: tokenService.CUSTOMER_AUDIENCE,
       user: {
         id: String(user.id),
         name: user.name,
@@ -174,7 +216,43 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Dedicated Admin Portal Login
+/**
+ * Customer Logout
+ * POST /api/auth/logout or /api/v1/customer/auth/logout
+ */
+router.post("/logout", (req, res) => {
+  tokenService.clearCustomerCookie(res);
+  res.json({
+    success: true,
+    message: "Customer logged out successfully",
+  });
+});
+
+/**
+ * Customer Current Session Profile
+ * GET /api/v1/customer/auth/me
+ */
+router.get("/customer/me", requireCustomerAuth, (req, res) => {
+  res.json({
+    success: true,
+    portal: "customer",
+    user: {
+      id: String(req.user.id),
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+    },
+  });
+});
+
+// ============================================================================
+// ADMINISTRATOR AUTHENTICATION ENDPOINTS
+// ============================================================================
+
+/**
+ * Dedicated Admin Portal Login
+ * POST /api/auth/admin/login or /api/v1/admin/auth/login
+ */
 router.post("/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -196,15 +274,16 @@ router.post("/admin/login", async (req, res) => {
       });
     }
 
+    // Strictly enforce role check
     if (admin.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Access denied. This portal is strictly restricted to store administrators.",
+        message: "Access denied: This portal is strictly restricted to store administrators. Customer credentials are not permitted.",
+        code: "CUSTOMER_CREDENTIALS_REJECTED",
       });
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
-
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -212,11 +291,16 @@ router.post("/admin/login", async (req, res) => {
       });
     }
 
+    const token = tokenService.generateAdminToken(admin);
+    tokenService.setAdminCookie(res, token);
+
     res.json({
       success: true,
-      message: "Admin login successful",
-      token: generateToken(admin.id),
+      message: "Administrator session established",
+      token,
+      audience: tokenService.ADMIN_AUDIENCE,
       user: {
+        id: String(admin.id),
         name: admin.name,
         email: admin.email,
         role: admin.role,
@@ -231,8 +315,40 @@ router.post("/admin/login", async (req, res) => {
   }
 });
 
-// Admin update email/password
-router.put("/admin/update-profile", protectAdmin, async (req, res) => {
+/**
+ * Admin Logout
+ * POST /api/auth/admin/logout or /api/v1/admin/auth/logout
+ */
+router.post("/admin/logout", (req, res) => {
+  tokenService.clearAdminCookie(res);
+  res.json({
+    success: true,
+    message: "Administrator logged out successfully",
+  });
+});
+
+/**
+ * Admin Current Session Profile
+ * GET /api/v1/admin/auth/me
+ */
+router.get("/admin/me", requireAdminAuth, (req, res) => {
+  res.json({
+    success: true,
+    portal: "admin",
+    user: {
+      id: String(req.user.id),
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+    },
+  });
+});
+
+/**
+ * Admin update email/password
+ * PUT /api/auth/admin/update-profile
+ */
+router.put("/admin/update-profile", requireAdminAuth, async (req, res) => {
   try {
     const { name, email, currentPassword, newPassword } = req.body;
 
@@ -253,7 +369,6 @@ router.put("/admin/update-profile", protectAdmin, async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(currentPassword, admin.password);
-
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -286,7 +401,7 @@ router.put("/admin/update-profile", protectAdmin, async (req, res) => {
       .from("users")
       .update(updates)
       .eq("id", admin.id)
-      .select("name, email, role")
+      .select("id, name, email, role")
       .single();
 
     if (error) {
@@ -311,7 +426,14 @@ router.put("/admin/update-profile", protectAdmin, async (req, res) => {
   }
 });
 
-// Forgot password - send OTP
+// ============================================================================
+// PASSWORD RESET FLOW (CUSTOMER)
+// ============================================================================
+
+/**
+ * Forgot password - send OTP
+ * POST /api/auth/forgot-password
+ */
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -357,13 +479,13 @@ router.post("/forgot-password", async (req, res) => {
       to: user.email,
       subject: "Password Reset OTP - Sri Lakshmi Durga Agencies",
       html: `
-        <div style="font-family: Arial, sans-serif;">
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b;">
           <h2>Password Reset OTP</h2>
           <p>Hello ${user.name},</p>
           <p>Your OTP for password reset is:</p>
-          <h1>${otp}</h1>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1e40af; margin: 16px 0;">${otp}</div>
           <p>This OTP is valid for 10 minutes.</p>
-          <p>If you did not request this, ignore this email.</p>
+          <p>If you did not request this, please ignore this email.</p>
         </div>
       `,
     });
@@ -373,7 +495,7 @@ router.post("/forgot-password", async (req, res) => {
       message: "OTP sent to your email",
     });
   } catch (error) {
-    console.log(error);
+    console.error("Forgot password error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to send OTP email",
@@ -382,7 +504,10 @@ router.post("/forgot-password", async (req, res) => {
   }
 });
 
-// Reset password using OTP
+/**
+ * Reset password using OTP
+ * POST /api/auth/reset-password
+ */
 router.post("/reset-password", async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
@@ -419,7 +544,6 @@ router.post("/reset-password", async (req, res) => {
     }
 
     const isOtpMatch = await bcrypt.compare(otp.toString(), user.resetOtp);
-
     if (!isOtpMatch) {
       return res.status(400).json({
         success: false,

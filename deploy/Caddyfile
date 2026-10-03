@@ -1,0 +1,76 @@
+# ==============================================================================
+# SRI LAKSHMI DURGA AGENCIES — CADDY REVERSE PROXY CONFIGURATION
+# Automatic TLS + Subdomain Separation + Edge Access Control
+# ==============================================================================
+
+{
+    email admin@srilakshmidurgaagencies.com
+    admin off
+}
+
+# ------------------------------------------------------------------------------
+# CUSTOMER PORTAL: app.srilakshmidurgaagencies.com
+# ------------------------------------------------------------------------------
+app.srilakshmidurgaagencies.com {
+    root * /var/www/slda/frontend/dist/customer
+    file_server
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://api.razorpay.com;"
+        -Server
+    }
+
+    # EDGE RULE: Block any Admin route attempts at Customer Domain
+    @blockedAdmin {
+        path /api/v1/admin/*
+        path /admin/*
+    }
+    respond @blockedAdmin "Route not accessible via Customer Portal" 404
+
+    # Reverse proxy customer API endpoints to backend
+    handle /api/v1/customer/* {
+        reverse_proxy 127.0.0.1:5000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Fallback to Single Page App
+    try_files {path} /index.html
+}
+
+# ------------------------------------------------------------------------------
+# ADMINISTRATOR PORTAL: admin.srilakshmidurgaagencies.com
+# ------------------------------------------------------------------------------
+admin.srilakshmidurgaagencies.com {
+    root * /var/www/slda/frontend/dist/admin
+    file_server
+
+    # Hardened Admin Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co blob:; connect-src 'self' https://*.supabase.co;"
+        -Server
+    }
+
+    # Reverse proxy admin API endpoints
+    handle /api/v1/admin/* {
+        reverse_proxy 127.0.0.1:5000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Fallback to Admin Single Page App
+    try_files {path} /admin.html
+}
