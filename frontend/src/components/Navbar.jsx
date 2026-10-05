@@ -148,10 +148,6 @@ function Navbar() {
 
             {userToken ? (
               <div className="user-action-group">
-                <Link to="/profile" className="profile-pill" title="Customer Account">
-                  <User size={15} />
-                  <span>{userName ? userName.split(" ")[0] : "Account"}</span>
-                </Link>
                 <button
                   type="button"
                   className="btn-icon-logout"
