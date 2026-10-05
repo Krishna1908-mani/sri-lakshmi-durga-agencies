@@ -163,6 +163,26 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.get("/api/health/email", async (req, res) => {
+  const { verifyEmailConnection } = require("./services/emailService");
+  const connection = await verifyEmailConnection();
+  const adminEmail = (process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "").trim();
+
+  res.status(connection.connected ? 200 : 503).json({
+    success: connection.connected,
+    connection,
+    config: {
+      hasEmailUser: Boolean(process.env.EMAIL_USER),
+      hasEmailPass: Boolean(process.env.EMAIL_PASS),
+      hasAdminEmail: Boolean(process.env.ADMIN_EMAIL),
+      effectiveAdminRecipient: adminEmail ? `${adminEmail.slice(0, 3)}***@${adminEmail.split("@")[1] || ""}` : "NOT_CONFIGURED",
+      hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+      hasSmtpHost: Boolean(process.env.SMTP_HOST),
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ============================================================
 // NAMESPACED API ROUTERS (ARCHITECTURAL ISOLATION)
 // ============================================================

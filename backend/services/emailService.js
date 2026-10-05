@@ -18,23 +18,64 @@ function createTransporter() {
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
       auth: {
-        user: process.env.SMTP_USER || process.env.EMAIL_USER,
-        pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
+        user: (process.env.SMTP_USER || process.env.EMAIL_USER || "").trim(),
+        pass: (process.env.SMTP_PASS || process.env.EMAIL_PASS || "").trim(),
       },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
     });
   }
 
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    const cleanUser = process.env.EMAIL_USER.trim();
+    const cleanPass = (process.env.EMAIL_PASS || "").replace(/\s+/g, "").trim();
+
     return nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: cleanUser,
+        pass: cleanPass,
       },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
     });
   }
 
   return null;
+}
+
+/**
+ * Diagnostics: Verify email transporter connection
+ */
+async function verifyEmailConnection() {
+  const transporter = createTransporter();
+  if (!transporter) {
+    return {
+      connected: false,
+      message: "No email transporter configured (EMAIL_USER/EMAIL_PASS or SMTP_HOST missing)",
+    };
+  }
+
+  try {
+    await transporter.verify();
+    return {
+      connected: true,
+      message: "Email transporter verified successfully",
+      provider: process.env.SMTP_HOST ? "Custom SMTP" : "Gmail (Port 465 Direct SSL)",
+      sender: process.env.EMAIL_USER || process.env.SMTP_USER,
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      message: error.message,
+      provider: process.env.SMTP_HOST ? "Custom SMTP" : "Gmail (Port 465 Direct SSL)",
+      sender: process.env.EMAIL_USER || process.env.SMTP_USER,
+    };
+  }
 }
 
 /**
@@ -45,9 +86,14 @@ async function sendRawEmail({ to, subject, html, text }) {
     return { success: false, error: "Recipient and subject are required" };
   }
 
-  const fromAddress =
-    process.env.EMAIL_FROM ||
-    `"Sri Lakshmi Durga Agencies" <${process.env.SMTP_USER || process.env.EMAIL_USER || "no-reply@srilakshmidurgaagencies.com"}>`;
+  const userEmail = (process.env.EMAIL_USER || "").trim();
+  const smtpUser = (process.env.SMTP_USER || "").trim();
+
+  // If using Gmail without custom domain SMTP/Resend, enforce that sender email matches authenticated Gmail account
+  const isGmailDirect = !process.env.SMTP_HOST && !process.env.RESEND_API_KEY && Boolean(userEmail);
+  const fromAddress = isGmailDirect
+    ? `"Sri Lakshmi Durga Agencies" <${userEmail}>`
+    : (process.env.EMAIL_FROM || `"Sri Lakshmi Durga Agencies" <${smtpUser || userEmail || "no-reply@srilakshmidurgaagencies.com"}>`);
 
   // 1. Resend API support (if configured)
   if (process.env.RESEND_API_KEY) {
@@ -69,21 +115,22 @@ async function sendRawEmail({ to, subject, html, text }) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn("Resend email dispatch error:", errorText);
+        console.warn("[Email Service] Resend API error:", errorText);
         // Fall back to transporter if available
       } else {
         const resData = await response.json();
+        console.log(`[Email Service] Sent via Resend to ${Array.isArray(to) ? to.join(", ") : to} (ID: ${resData.id})`);
         return { success: true, id: resData.id };
       }
     } catch (resendErr) {
-      console.warn("Resend fetch error:", resendErr.message);
+      console.warn("[Email Service] Resend fetch exception:", resendErr.message);
     }
   }
 
   // 2. SMTP / Nodemailer fallback
   const transporter = createTransporter();
   if (!transporter) {
-    console.warn("Email service: No SMTP or Resend credentials configured. Dispatch skipped safely.");
+    console.warn("[Email Service] No SMTP or Gmail credentials configured. Dispatch skipped safely.");
     return { success: false, skipped: true, message: "No email provider configured" };
   }
 
@@ -95,9 +142,10 @@ async function sendRawEmail({ to, subject, html, text }) {
       html,
       text: text || html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
     });
+    console.log(`[Email Service] Email dispatched successfully to ${to} (MessageId: ${info.messageId})`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("Nodemailer dispatch failed:", error.message);
+    console.error(`[Email Service] Nodemailer dispatch failed to ${to}:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -492,6 +540,7 @@ async function sendPromotionalEmail({ to, customerName, subject, headline, bodyC
 
 module.exports = {
   sendRawEmail,
+  verifyEmailConnection,
   sendWelcomeEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
