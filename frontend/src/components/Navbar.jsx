@@ -27,7 +27,6 @@ function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const userToken = localStorage.getItem("userToken");
-  const userName = localStorage.getItem("userName");
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -270,7 +269,7 @@ function Navbar() {
           {userToken ? (
             <button type="button" className="mobile-drawer-btn logout" onClick={logoutUser}>
               <LogOut size={16} />
-              <span>Sign Out ({userName ? userName.split(" ")[0] : "Customer"})</span>
+              <span>Sign Out</span>
             </button>
           ) : (
             <div className="mobile-drawer-auth-buttons">
