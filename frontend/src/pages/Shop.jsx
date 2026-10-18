@@ -117,6 +117,10 @@ function Shop() {
     setShowSuggestions(false);
   };
 
+  const hasActiveFilters = Boolean(
+    search.trim() || selectedCategory !== "All" || maxPrice || sortBy !== "newest"
+  );
+
   // Dynamic SEO & Structured Data Management
   useEffect(() => {
     // 1. Page Title
