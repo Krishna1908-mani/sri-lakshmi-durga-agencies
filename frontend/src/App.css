@@ -1481,6 +1481,14 @@
   margin: 6px auto 0;
 }
 
+.shop-intro-desc {
+  color: var(--neutral-600);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  max-width: 680px;
+  margin: 10px auto 0;
+}
+
 .shop-controls-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-card);

@@ -75,13 +75,13 @@ function ProductCard({ product }) {
       <div className="product-info">
         <span className="product-category">{product.category || "General"}</span>
 
-        <h3 className="product-title">
+        <h2 className="product-title">
           <Link to={`/product/${productId}`}>{product.name}</Link>
-        </h3>
+        </h2>
 
         <div className="product-rating-row">
-          <div className="star-rating-badge">
-            <Star size={13} className="star-svg-fill" fill="#f59e0b" stroke="#f59e0b" />
+          <div className="star-rating-badge" aria-label={`Rating: ${product.rating ? Number(product.rating).toFixed(1) : "4.5"} out of 5 stars`}>
+            <Star size={13} className="star-svg-fill" fill="#f59e0b" stroke="#f59e0b" aria-hidden="true" />
             <span className="rating-value">{product.rating ? Number(product.rating).toFixed(1) : "4.5"}</span>
           </div>
           <span className="reviews-count">({product.numReviews || 0} reviews)</span>
@@ -99,7 +99,7 @@ function ProductCard({ product }) {
 
         <div className="stock-status-row">
           <span className={isOutOfStock ? "stock-badge out-stock" : "stock-badge in-stock"}>
-            <span className="stock-dot"></span>
+            <span className="stock-dot" aria-hidden="true"></span>
             {isOutOfStock ? "Out of Stock" : `In Stock (${product.stock})`}
           </span>
         </div>
@@ -114,22 +114,29 @@ function ProductCard({ product }) {
           >
             {isAdding ? (
               <>
-                <Check size={16} />
+                <Check size={16} aria-hidden="true" />
                 <span>Added!</span>
               </>
             ) : isOutOfStock ? (
               <span>Sold Out</span>
             ) : (
               <>
-                <ShoppingBag size={16} />
+                <ShoppingBag size={16} aria-hidden="true" />
                 <span>Add to Cart</span>
               </>
             )}
           </button>
 
-          <Link to={`/product/${productId}`} className="view-details-link" title="View details">
-            <Eye size={16} />
-            <span>Details</span>
+          <Link
+            to={`/product/${productId}`}
+            className="view-details-link"
+            title={`View details for ${product.name}`}
+            aria-label={`View details for ${product.name}`}
+          >
+            <Eye size={16} aria-hidden="true" />
+            <span>
+              Details<span className="sr-only"> for {product.name}</span>
+            </span>
           </Link>
         </div>
       </div>
