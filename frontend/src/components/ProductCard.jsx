@@ -62,10 +62,15 @@ function ProductCard({ product }) {
           />
         </button>
 
-        <Link to={`/product/${productId}`} className="product-img-link" tabIndex={-1}>
+        <Link
+          to={`/product/${productId}`}
+          className="product-img-link"
+          tabIndex={-1}
+          aria-hidden="true"
+        >
           <img
             src={productImage}
-            alt={product.name}
+            alt=""
             loading="lazy"
             className="product-card-img"
           />
@@ -130,13 +135,11 @@ function ProductCard({ product }) {
           <Link
             to={`/product/${productId}`}
             className="view-details-link"
-            title={`View details for ${product.name}`}
-            aria-label={`View details for ${product.name}`}
+            tabIndex={-1}
+            aria-hidden="true"
           >
             <Eye size={16} aria-hidden="true" />
-            <span>
-              Details<span className="sr-only"> for {product.name}</span>
-            </span>
+            <span>Details</span>
           </Link>
         </div>
       </div>

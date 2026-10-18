@@ -8,7 +8,10 @@ import {
   Sparkles, 
   ShoppingBag, 
   RotateCcw,
-  Check
+  Check,
+  ShieldCheck,
+  Truck,
+  MessageCircle
 } from "lucide-react";
 import API from "../api/axios";
 import ProductCard from "../components/ProductCard";
@@ -121,67 +124,93 @@ function Shop() {
     search.trim() || selectedCategory !== "All" || maxPrice || sortBy !== "newest"
   );
 
-  // Dynamic SEO & Structured Data Management
+  // Dynamic SEO & Structured Data Management with Strict Head Deduplication
   useEffect(() => {
-    // 1. Page Title
-    const originalTitle = document.title;
-    document.title = "Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies";
-
-    // 2. Canonical URL
-    let canonicalLink = document.querySelector('link[rel="canonical"]');
-    let createdCanonical = false;
-    if (!canonicalLink) {
-      canonicalLink = document.createElement("link");
-      canonicalLink.setAttribute("rel", "canonical");
-      document.head.appendChild(canonicalLink);
-      createdCanonical = true;
+    // 1. Page Title: Set target title and purge any duplicate <title> tags in <head>
+    const originalTitle = "Sri Lakshmi Durga Agencies";
+    const targetTitle = "Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies";
+    document.title = targetTitle;
+    const existingTitles = document.head.querySelectorAll("title");
+    for (let i = 1; i < existingTitles.length; i++) {
+      existingTitles[i].remove();
     }
-    canonicalLink.setAttribute("href", "https://sri-lakshmi-durga-agencies.vercel.app/shop");
 
-    // 3. Open Graph & Twitter Social Cards
+    // 2. Meta Description: Update existing primary tag and purge any duplicates
+    const shopMetaDesc = "Shop handcrafted Indian ethnic wear, designer kurtis, dresses, tops & daily essentials. Premium fabrics, verified quality, wholesale & retail pricing across India.";
+    const existingDescriptions = document.head.querySelectorAll('meta[name="description"]');
+    if (existingDescriptions.length > 0) {
+      existingDescriptions[0].setAttribute("content", shopMetaDesc);
+      for (let i = 1; i < existingDescriptions.length; i++) {
+        existingDescriptions[i].remove();
+      }
+    } else {
+      const meta = document.createElement("meta");
+      meta.name = "description";
+      meta.content = shopMetaDesc;
+      document.head.appendChild(meta);
+    }
+
+    // 3. Canonical URL: Set target canonical and purge any duplicates
+    const canonicalUrl = "https://sri-lakshmi-durga-agencies.vercel.app/shop";
+    const existingCanonicals = document.head.querySelectorAll('link[rel="canonical"]');
+    if (existingCanonicals.length > 0) {
+      existingCanonicals[0].setAttribute("href", canonicalUrl);
+      for (let i = 1; i < existingCanonicals.length; i++) {
+        existingCanonicals[i].remove();
+      }
+    } else {
+      const canonicalLink = document.createElement("link");
+      canonicalLink.setAttribute("rel", "canonical");
+      canonicalLink.setAttribute("href", canonicalUrl);
+      document.head.appendChild(canonicalLink);
+    }
+
+    // 4. Open Graph & Twitter Social Cards: Guarantee exactly one tag per property/name
     const metaTags = [
-      { property: "og:title", content: "Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies" },
-      { property: "og:description", content: "Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store." },
+      { property: "og:title", content: targetTitle },
+      { property: "og:description", content: shopMetaDesc },
       { property: "og:image", content: "https://sri-lakshmi-durga-agencies.vercel.app/logo.png" },
-      { property: "og:url", content: "https://sri-lakshmi-durga-agencies.vercel.app/shop" },
+      { property: "og:url", content: canonicalUrl },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies" },
-      { name: "twitter:description", content: "Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store." },
+      { name: "twitter:title", content: targetTitle },
+      { name: "twitter:description", content: shopMetaDesc },
       { name: "twitter:image", content: "https://sri-lakshmi-durga-agencies.vercel.app/logo.png" },
     ];
 
-    const createdMetaElements = [];
     metaTags.forEach(({ property, name, content }) => {
       const selector = property ? `meta[property="${property}"]` : `meta[name="${name}"]`;
-      let meta = document.querySelector(selector);
-      if (!meta) {
-        meta = document.createElement("meta");
-        if (property) meta.setAttribute("property", property);
-        if (name) meta.setAttribute("name", name);
-        document.head.appendChild(meta);
-        createdMetaElements.push(meta);
+      const matches = document.head.querySelectorAll(selector);
+      let targetMeta;
+      if (matches.length > 0) {
+        targetMeta = matches[0];
+        for (let i = 1; i < matches.length; i++) {
+          matches[i].remove();
+        }
+      } else {
+        targetMeta = document.createElement("meta");
+        if (property) targetMeta.setAttribute("property", property);
+        if (name) targetMeta.setAttribute("name", name);
+        document.head.appendChild(targetMeta);
       }
-      meta.setAttribute("content", content);
+      targetMeta.setAttribute("content", content);
     });
 
-    // 4. Schema.org JSON-LD Structured Data
+    // 5. Schema.org JSON-LD Structured Data
     let schemaScript = document.getElementById("shop-jsonld-schema");
-    let createdSchema = false;
     if (!schemaScript) {
       schemaScript = document.createElement("script");
       schemaScript.id = "shop-jsonld-schema";
       schemaScript.type = "application/ld+json";
       document.head.appendChild(schemaScript);
-      createdSchema = true;
     }
 
     const jsonLdData = {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      "name": "Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies",
-      "description": "Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store.",
-      "url": "https://sri-lakshmi-durga-agencies.vercel.app/shop",
+      "name": targetTitle,
+      "description": shopMetaDesc,
+      "url": canonicalUrl,
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -195,7 +224,7 @@ function Shop() {
             "@type": "ListItem",
             "position": 2,
             "name": "Shop",
-            "item": "https://sri-lakshmi-durga-agencies.vercel.app/shop"
+            "item": canonicalUrl
           }
         ]
       },
@@ -213,13 +242,11 @@ function Shop() {
 
     return () => {
       document.title = originalTitle;
-      if (createdCanonical && canonicalLink && canonicalLink.parentNode) {
-        canonicalLink.parentNode.removeChild(canonicalLink);
+      const defaultDesc = document.head.querySelector('meta[name="description"]');
+      if (defaultDesc) {
+        defaultDesc.setAttribute("content", "Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store.");
       }
-      createdMetaElements.forEach((el) => {
-        if (el && el.parentNode) el.parentNode.removeChild(el);
-      });
-      if (createdSchema && schemaScript && schemaScript.parentNode) {
+      if (schemaScript && schemaScript.parentNode) {
         schemaScript.parentNode.removeChild(schemaScript);
       }
     };
@@ -227,20 +254,6 @@ function Shop() {
 
   return (
     <main className="shop-page-wrapper" id="main-content">
-      {/* React 19 Document Metadata Hoisting */}
-      <title>Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies</title>
-      <meta name="description" content="Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store." />
-      <link rel="canonical" href="https://sri-lakshmi-durga-agencies.vercel.app/shop" />
-      <meta property="og:title" content="Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies" />
-      <meta property="og:description" content="Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store." />
-      <meta property="og:image" content="https://sri-lakshmi-durga-agencies.vercel.app/logo.png" />
-      <meta property="og:url" content="https://sri-lakshmi-durga-agencies.vercel.app/shop" />
-      <meta property="og:type" content="website" />
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content="Shop Women's Fashion & Clothing | Sri Lakshmi Durga Agencies" />
-      <meta name="twitter:description" content="Sri Lakshmi Durga Agencies - Online ladies clothing, tops, jackets, essentials and fashion store." />
-      <meta name="twitter:image" content="https://sri-lakshmi-durga-agencies.vercel.app/logo.png" />
-
       {/* Header Banner */}
       <header className="shop-header">
         <div className="shop-header-badge">
@@ -249,9 +262,15 @@ function Shop() {
         </div>
         <h1 className="shop-title">Shop Products</h1>
         <p className="shop-subtitle">Find your favorite ladies clothing, kurtis, dresses, and daily essentials</p>
-        <p className="shop-intro-desc">
-          Explore our handcrafted collection of authentic Indian ethnic wear, contemporary kurtis, designer dresses, stylish tops, and everyday essentials. Sourced with premium fabrics and offered at direct wholesale and retail pricing with fast, reliable dispatch across India.
-        </p>
+        
+        <div className="shop-intro-content">
+          <p className="shop-intro-desc">
+            Welcome to Sri Lakshmi Durga Agencies, your trusted destination for premium Indian ethnic wear and contemporary ladies fashion. Explore our handpicked collection of traditional designer kurtis, elegant dresses, stylish office-wear tops, flowy tunics, and comfortable daily essentials designed to combine timeless Indian aesthetics with everyday versatility.
+          </p>
+          <p className="shop-intro-desc">
+            Every piece in our catalog is tailored from skin-friendly, high-grade fabrics including breathable pure cotton, rich rayon, chanderi silk, and lightweight georgette. Whether purchasing for daily wear, festive occasions, or wholesale retail distribution, we guarantee 100% verified quality, authentic stitching, transparent sizing, and prompt doorstep delivery across all Indian states with Cash on Delivery (COD) and secure prepaid payments.
+          </p>
+        </div>
       </header>
 
       {/* Main Control Suite (Search & Filters) */}
@@ -450,6 +469,57 @@ function Shop() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Shopping Guide, Fabric Care & FAQ Section */}
+      <section className="shop-guide-section" aria-label="Fabric Care, Quality and Shipping Guide">
+        <div className="shop-guide-header">
+          <span className="section-eyebrow">Customer Guide</span>
+          <h2>Fabric Care, Sizing & Shipping Details</h2>
+          <p>Everything you need to know about our garment quality, sizing accuracy, and pan-India shipping.</p>
+        </div>
+
+        <div className="shop-guide-grid">
+          <div className="shop-guide-card">
+            <div className="guide-card-icon">
+              <ShieldCheck size={20} aria-hidden="true" />
+            </div>
+            <h3>100% Quality & Color-Fast Fabrics</h3>
+            <p>
+              Our kurtis, dresses, and tops use pre-tested, color-fast dyes on breathable natural cottons and premium rayons. They resist fading and shrinking with standard gentle cold-water washing.
+            </p>
+          </div>
+
+          <div className="shop-guide-card">
+            <div className="guide-card-icon">
+              <Sparkles size={20} aria-hidden="true" />
+            </div>
+            <h3>True-to-Fit Indian Sizing</h3>
+            <p>
+              Each design is tailored to accurate Indian body sizing standards (S through 3XL). For custom sizing recommendations, reach our helpdesk with your chest and waist measurements.
+            </p>
+          </div>
+
+          <div className="shop-guide-card">
+            <div className="guide-card-icon">
+              <Truck size={20} aria-hidden="true" />
+            </div>
+            <h3>Fast Pan-India Doorstep Dispatch</h3>
+            <p>
+              Orders are packaged within 24 business hours. Enjoy insured express delivery across Andhra Pradesh, Telangana, Karnataka, Tamil Nadu, and all Indian pincodes with live SMS tracking.
+            </p>
+          </div>
+
+          <div className="shop-guide-card">
+            <div className="guide-card-icon">
+              <MessageCircle size={20} aria-hidden="true" />
+            </div>
+            <h3>Wholesale & Personal WhatsApp Support</h3>
+            <p>
+              Need bulk wholesale pricing or help placing an order? Our support team is available on WhatsApp at +91 9949677382 for instant sizing, fabric pictures, and order assistance.
+            </p>
+          </div>
+        </div>
       </section>
     </main>
   );
