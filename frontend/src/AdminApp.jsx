@@ -13,6 +13,7 @@ import AdminShippingLabel from "./admin/AdminShippingLabel";
 import AdminBanner from "./admin/AdminBanner";
 import AdminSettings from "./admin/AdminSettings";
 import AdminProtected from "./admin/AdminProtected";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import "./App.css";
 
@@ -233,6 +234,7 @@ function AdminApp() {
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        <SpeedInsights />
       </div>
     </BrowserRouter>
   );

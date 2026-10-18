@@ -22,6 +22,7 @@ import Wishlist from "./pages/Wishlist";
 import RecentlyViewed from "./pages/RecentlyViewed";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import "./App.css";
 
@@ -73,6 +74,7 @@ function CustomerApp() {
             </Routes>
             <WhatsAppButton />
             <Footer />
+            <SpeedInsights />
           </BrowserRouter>
         </WishlistProvider>
       </CartProvider>
